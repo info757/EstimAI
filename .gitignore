@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.sqlite3
+*.db
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Mac / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Logs & caches
+*.log
+*.out
+*.err
+*.cache/
+.cache/
+coverage/
+htmlcov/
+
+# Test artifacts
+.pytest_cache/
+.tox/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+*.lock
+
+# Project artifacts (uploads & AI outputs)
+backend/artifacts/
+artifacts/
+
+# Credentials / config
+.env
+.env.*
+*.secret
+*.key
+
+# Other
+*.bak
+*.tmp
+
