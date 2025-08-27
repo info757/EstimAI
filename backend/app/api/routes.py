@@ -4,6 +4,7 @@ from ..services import orchestrator
 from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
 from app.services import orchestrator  # you already have this pattern
 from app.models.schemas import EstimateOutput  # add if not present
+from app.services.bid import build_bid_pdf
 
 r = APIRouter()
 
@@ -37,3 +38,8 @@ async def run_risk(pid: str):
 async def run_estimate(pid: str):
     est = await orchestrator.run_estimate(pid)
     return est
+
+@r.post("/projects/{pid}/bid")
+async def create_bid(pid: str):
+    path = build_bid_pdf(pid)
+    return {"project_id": pid, "pdf_path": path}

@@ -1,4 +1,6 @@
+# =====================
 # Python
+# =====================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -7,18 +9,24 @@ __pycache__/
 *.sqlite3
 *.db
 
-# Virtual environment
+# =====================
+# Virtual environments
+# =====================
 .venv/
 env/
 venv/
 
-# Mac / IDE
+# =====================
+# Mac / IDE / Editors
+# =====================
 .DS_Store
 .vscode/
 .idea/
 *.swp
 
+# =====================
 # Logs & caches
+# =====================
 *.log
 *.out
 *.err
@@ -27,28 +35,48 @@ venv/
 coverage/
 htmlcov/
 
+# =====================
 # Test artifacts
+# =====================
 .pytest_cache/
 .tox/
 .mypy_cache/
 
-# Node / frontend
+# =====================
+# Node / Frontend
+# =====================
 node_modules/
 dist/
 build/
 *.lock
 
+# =====================
 # Project artifacts (uploads & AI outputs)
+# =====================
 backend/artifacts/
 artifacts/
+*.pdf  # generated bid reports
 
-# Credentials / config
+# =====================
+# Docs / reports
+# =====================
+reports/
+docs/_build/
+
+# =====================
+# Secrets / config
+# =====================
 .env
 .env.*
 *.secret
 *.key
 
-# Other
-*.bak
-*.tmp
+# =====================
+# Local AI / Cursor
+# =====================
+.cursorrules
+.cursorignore
 
+# =====================
+# Other
+# ===========

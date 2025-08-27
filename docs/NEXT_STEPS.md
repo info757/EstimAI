@@ -46,7 +46,7 @@ This is your **living Kanban** inside the repo. Keep items bite-sized (aim for h
     "Structural Steel (ton)": 1200.00
   }
 
-- [ ] Ticket: **Tighten Leveler & Risk Prompts**
+- [x] Ticket: **Tighten Leveler & Risk Prompts**
   - [ ] Enforce strict JSON contracts (no prose) in `prompts/leveler/system.md` and `prompts/risk/system.md`
   - [ ] Endpoint smoke tests validate JSON shape
   - **Acceptance:** `/agents/level` and `/agents/risk` return schema-valid payloads on sample PDFs (empty lists allowed).
@@ -79,11 +79,43 @@ This is your **living Kanban** inside the repo. Keep items bite-sized (aim for h
 - Future: validation middleware could enforce schema, but prompt tightening is fastest path for MVP.
 
 ## 🟡 Next Up
-- [ ] Ticket: **Bid PDF Generator (v1)**
+- [X] Ticket: **Bid PDF Generator (v1)**
   - [ ] Service + endpoint: `POST /projects/{pid}/bid`
   - [ ] ReportLab template: cover, scope, estimate summary, risks, totals
   - [ ] Reads latest artifacts from `scope/`, `estimate/`, `risk/`
   - **Acceptance:** Returns a well-formed PDF; manual spot check includes all sections.
+  ## Ticket: Bid PDF Generator (MVP)
+**Task:** Generate a professional bid PDF combining Scope, Estimate, and Risks for a project.
+
+**Why:** Contractors need a submission-ready package, not just JSON artifacts.
+
+**Scope:**
+- `backend/app/services/bid.py`  
+  - `build_bid_pdf(pid: str) -> str`  // returns absolute path to created PDF
+  - Load latest artifacts:
+    - `artifacts/{pid}/scope/*.json` (ScopeOutput)
+    - `artifacts/{pid}/estimate/*.json` (EstimateOutput)
+    - `artifacts/{pid}/risk/*.json` (RiskOutput)
+  - Render PDF with: Cover (project + date), Scope (bulleted), Estimate summary table (qty, unit, unit_cost, total), Risks (top 5), Totals.
+  - Save under `artifacts/{pid}/bid/<timestamp>.pdf`.
+- `backend/app/api/routes.py`
+  - `POST /projects/{pid}/bid` → calls `build_bid_pdf` and returns `{ "project_id": pid, "pdf_path": "<...>" }`.
+- `backend/app/templates/bid_template.py` (optional)
+  - Keep ReportLab layout helpers separated (styles, table builder).
+- `backend/tests/test_bid_pdf.py`
+  - Creates tmp project with minimal artifacts.
+  - Calls endpoint and asserts: 200, file exists, file size > 0.
+
+**Acceptance:**
+- Hitting `POST /api/projects/{pid}/bid` creates a PDF at `artifacts/{pid}/bid/<ts>.pdf`.
+- PDF includes project header, scope section, estimate table (at least 2 rows if present), risks section, and total bid figure.
+- Test `pytest backend/tests/test_bid_pdf.py -q` passes.
+
+**Notes:**
+- Use ReportLab (SimpleDocTemplate, Paragraph, Spacer, Table).
+- If any artifact missing, render section header with “No data” and still produce a valid PDF.
+- Currency formatting: `$1,234.56` (basic Python formatting is fine).
+
 
 - [ ] Ticket: **Async Jobs + Polling**
   - [ ] `/ingest_async`, `/agents/*_async` using `BackgroundTasks`

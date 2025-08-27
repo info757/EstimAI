@@ -29,3 +29,40 @@ Rules:
 Strictness:
 - Top-level MUST be an array, never an object, string, number, or null.
 - `normalized` MUST be an array; if empty, use [].
+
+Strict rules (Schema contract):
+
+- Top-level MUST be a JSON array. If there are no results, return: []
+- Each element MUST be an object with exactly these fields:
+  - "original": string  — the raw item text from takeoff/specs
+  - "normalized": array of strings  — zero or more standardized assembly names
+  - "confidence": number  — 0 ≤ confidence ≤ 1
+
+- "normalized" MUST always be an array (use [] if none).
+- Do not include any text, comments, or explanations outside the JSON.
+
+Example valid outputs:
+
+[
+  {
+    "original": "3000 psi concrete slab, 4in",
+    "normalized": ["Concrete Slab 3000psi"],
+    "confidence": 0.86
+  },
+  {
+    "original": "HSS columns W8x24",
+    "normalized": ["Structural Steel (ton)"],
+    "confidence": 0.74
+  }
+]
+
+Validation notes:
+
+- If you are uncertain, set "confidence" lower but still return valid JSON.
+- If an item cannot be normalized, return:
+  {
+    "original": "<the item text>",
+    "normalized": [],
+    "confidence": 0.0
+  }
+
