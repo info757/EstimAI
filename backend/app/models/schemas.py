@@ -48,3 +48,18 @@ class WBSItem(BaseModel):
     unit: str
     unit_cost: float
     total: float
+class EstimateItem(BaseModel):
+    description: str = Field(..., description="Human readable line item, e.g., 'Concrete Slab 3000psi'")
+    qty: float = Field(..., ge=0, description="Quantity from takeoff")
+    unit: str = Field(..., description="Unit of measure, e.g., 'SF', 'TON'")
+    unit_cost: float = Field(..., ge=0, description="Cost per unit")
+    total: float = Field(..., ge=0, description="qty * unit_cost (computed)")
+
+class EstimateOutput(BaseModel):
+    project_id: str
+    items: List[EstimateItem] = Field(default_factory=list)
+    subtotal: float = Field(0, ge=0)
+    overhead_pct: float = Field(10.0, ge=0, description="Default 10% for MVP")
+    profit_pct: float = Field(5.0, ge=0, description="Default 5% for MVP")
+    total_bid: float = Field(0, ge=0)
+    notes: Optional[str] = None   

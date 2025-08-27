@@ -3,21 +3,65 @@ import os
 import json
 import time
 from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
 from typing import List
 
 from fastapi import UploadFile, HTTPException
 
+
 from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
 from ..agents import takeoff_agent, scope_agent, leveler_agent, risk_agent
 
+from typing import Dict, Any  # add
+from ..models.schemas import EstimateItem, EstimateOutput  # add (next to your other schema imports)
+
+
 def _artifact_dir() -> Path:
-    return Path(os.getenv("ARTIFACT_DIR", "backend/artifacts"))
+    # Always resolve to <project>/backend/artifacts unless ARTIFACT_DIR is set
+    return Path(os.getenv("ARTIFACT_DIR", str(PROJECT_ROOT / "backend" / "artifacts")))
+
 
 # -------------------------
 # Helpers
 # -------------------------
 def _safe_filename(name: str) -> str:
     return "".join(c for c in name if c.isalnum() or c in ("-", "_", ".", " ")).strip()
+
+def _read_json(path: Path):
+    return json.loads(path.read_text())
+
+def _latest_jsons(dirpath: Path) -> list[Path]:
+    if not dirpath.exists():
+        return []
+    return [p for p in dirpath.glob("*.json") if p.is_file()]
+
+def _gather_takeoff_items(project_dir: Path) -> list[dict]:
+    """Merge all items from takeoff/*.json into one list."""
+    out: list[dict] = []
+    for jf in _latest_jsons(project_dir / "takeoff"):
+        try:
+            data = _read_json(jf)
+            items = data.get("items", [])
+            if isinstance(items, list):
+                out.extend(items)
+        except Exception:
+            # Skip unreadable files for MVP
+            continue
+    return out
+
+def _load_costbook() -> dict[str, float]:
+    """Load costbook from COSTBOOK_PATH or fallback to backend/app/data/costbook.json."""
+    env_path = os.getenv("COSTBOOK_PATH")
+    if env_path:
+        p = Path(env_path)
+        if p.exists():
+            return _read_json(p)
+    fallback = PROJECT_ROOT / "backend" / "app" / "data" / "costbook.json"
+    if fallback.exists():
+        return _read_json(fallback)
+    return {}
+
 
 async def _write_artifact(project_id: str, agent: str, payload: dict) -> None:
     ts = int(time.time())
@@ -82,13 +126,17 @@ async def ingest(pid: str, file: UploadFile):
                 break
             out.write(chunk)
 
-    # Build/refresh simple sheet index
-    idx_path = write_index(pid)
+    from app.workers.indexer import write_sheet_index  # import
+    from app.workers.spec_indexer import write_spec_index 
+    
+    idx_path = write_sheet_index(pid)
+    spec_path = write_spec_index(pid)
 
     return {
         "project_id": pid,
         "saved_path": str(target),
         "index_path": str(idx_path),
+        "spec_index_path": str(spec_path),
         "original_filename": file.filename,
         "content_type": file.content_type,
         "bytes": target.stat().st_size,
@@ -115,4 +163,57 @@ async def run_risk(pid: str) -> RiskOutput:
     result = await risk_agent.run(pid)
     await _write_artifact(pid, "risk", result.model_dump())
     return result
+
+async def run_estimate(pid: str) -> EstimateOutput:
+    """
+    Build a costed estimate from takeoff (+leveler later if needed).
+    - Reads takeoff items: [{description, qty, unit}, ...] from artifacts/{pid}/takeoff/*.json
+    - Looks up unit_cost via description in costbook
+    - Computes totals; persists artifact under artifacts/{pid}/estimate/<timestamp>.json
+    """
+    proj_dir = _artifact_dir() / pid
+    proj_dir.mkdir(parents=True, exist_ok=True)
+
+    takeoff_items = _gather_takeoff_items(proj_dir)
+    costbook = _load_costbook()
+
+    overhead_pct = float(os.getenv("OVERHEAD_PCT", "10"))
+    profit_pct  = float(os.getenv("PROFIT_PCT",  "5"))
+
+    items: list[EstimateItem] = []
+    subtotal = 0.0
+
+    for ti in takeoff_items:
+        desc = str(ti.get("description", "")).strip()
+        qty  = float(ti.get("qty", 0) or 0)
+        unit = str(ti.get("unit", "")).strip()
+        unit_cost = float(costbook.get(desc, 0.0))
+        total = qty * unit_cost
+        subtotal += total
+
+        items.append(
+            EstimateItem(
+                description=desc,
+                qty=qty,
+                unit=unit,
+                unit_cost=unit_cost,
+                total=total,
+            )
+        )
+
+    total_bid = subtotal * (1 + overhead_pct/100.0) * (1 + profit_pct/100.0)
+
+    est = EstimateOutput(
+        project_id=pid,
+        items=items,
+        subtotal=subtotal,
+        overhead_pct=overhead_pct,
+        profit_pct=profit_pct,
+        total_bid=total_bid,
+    )
+
+    # Persist artifact alongside your other agents
+    await _write_artifact(pid, "estimate", est.model_dump())
+
+    return est
 
