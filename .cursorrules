@@ -1,0 +1,22 @@
+# .cursorrules — EstimAI
+
+General
+- Follow repository structure; never invent new top-level dirs.
+- Prefer small, PR-sized changes (one concern per patch).
+- Always write/update tests when adding endpoints or agents.
+- Return strict JSON for agent outputs; no prose around JSON.
+- Update docs/ENGINEERING_LOG.md and docs/NEXT_STEPS.md when completing tickets.
+
+Python
+- Use FastAPI patterns already present (routers under app/api, services under app/services).
+- Validate Pydantic models; raise HTTPException on schema errors.
+- Persist artifacts under backend/artifacts/{pid}/{agent}/<timestamp>.json.
+
+Testing
+- Put tests under backend/tests; use -q for fast runs.
+- Tests should be deterministic; stub out LLM calls if needed.
+
+Docs
+- Keep prompts under prompts/<agent>/system.md.
+- Commit with messages like: feat(agent): add estimate endpoint + tests
+
