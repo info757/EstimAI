@@ -11,7 +11,7 @@ api: ; cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 web: ; cd frontend && npm run dev
 
 # Run backend tests
-test: ; cd backend && pytest -q
+test: ; set -o allexport; source .env; set +o allexport; cd backend && pytest -q
 
 # Format code
 fmt: ; ruff check --fix backend || true ; black backend || true
