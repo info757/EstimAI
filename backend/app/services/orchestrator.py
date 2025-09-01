@@ -217,3 +217,59 @@ async def run_estimate(pid: str) -> EstimateOutput:
 
     return est
 
+async def run_full_pipeline(pid: str) -> Dict[str, Any]:
+    """
+    Run all agents in sequence and persist their artifacts under:
+      backend/artifacts/<pid>/<agent>/<timestamp>.json
+    Returns a summary dict with any errors encountered.
+    """
+    summary: Dict[str, Any] = {"project_id": pid, "steps": {}, "errors": []}
+
+    # Takeoff
+    try:
+        to = await run_takeoff(pid)
+        summary["steps"]["takeoff"] = {"ok": True, "count": len(getattr(to, "items", []))}
+    except Exception as e:
+        summary["steps"]["takeoff"] = {"ok": False}
+        summary["errors"].append({"takeoff": str(e)})
+
+    # Scope
+    try:
+        sc = await run_scope(pid)
+        summary["steps"]["scope"] = {"ok": True, "inclusions": len(getattr(sc, "inclusions", []) or []),
+                                     "exclusions": len(getattr(sc, "exclusions", []) or [])}
+    except Exception as e:
+        summary["steps"]["scope"] = {"ok": False}
+        summary["errors"].append({"scope": str(e)})
+
+    # Leveler
+    try:
+        lv = await run_leveler(pid)
+        summary["steps"]["leveler"] = {"ok": True, "normalized": len(lv or [])}
+    except Exception as e:
+        summary["steps"]["leveler"] = {"ok": False}
+        summary["errors"].append({"leveler": str(e)})
+
+    # Risk
+    try:
+        rk = await run_risk(pid)
+        summary["steps"]["risk"] = {"ok": True, "risks": len(getattr(rk, "risks", []) or [])}
+    except Exception as e:
+        summary["steps"]["risk"] = {"ok": False}
+        summary["errors"].append({"risk": str(e)})
+
+    # Estimate (last, depends on takeoff)
+    try:
+        est = await run_estimate(pid)
+        summary["steps"]["estimate"] = {
+            "ok": True,
+            "items": len(getattr(est, "items", []) or []),
+            "subtotal": getattr(est, "subtotal", 0.0),
+            "total_bid": getattr(est, "total_bid", 0.0),
+        }
+    except Exception as e:
+        summary["steps"]["estimate"] = {"ok": False}
+        summary["errors"].append({"estimate": str(e)})
+
+    summary["ok"] = len(summary["errors"]) == 0
+    return summary
