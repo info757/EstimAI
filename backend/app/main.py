@@ -1,5 +1,6 @@
 # backend/app/main.py
 import logging
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from .api.routes import r
 from .core.config import get_settings
 from .core.paths import artifacts_root
+from .services.overrides import ensure_overrides_dir
 
 # Load environment variables
 load_dotenv()
@@ -47,6 +49,12 @@ app.mount("/projects", StaticFiles(directory=str(PROJECTS_DIR)), name="projects"
 app.include_router(r, prefix="/api")
 
 
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint."""
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+
 @app.on_event("startup")
 async def startup_event():
     """Log startup configuration."""
@@ -54,4 +62,8 @@ async def startup_event():
     logger.info(f"📁 /artifacts mounted at: {ARTIFACTS_DIR.resolve()}")
     logger.info(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
     logger.info(f"📝 Log level: {settings.LOG_LEVEL}")
+    
+    # Ensure overrides directory structure exists
+    logger.info(f"📁 Ensuring overrides directory structure...")
+    
     logger.info(f"✅ Backend ready at http://localhost:8000")

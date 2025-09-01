@@ -1,0 +1,20 @@
+{
+  "job_id": "e31bbadfa2024d9890efc9b051599d7c",
+  "project_id": "smoke_test_job_lifecycle",
+  "job_type": "pipeline",
+  "status": "complete",
+  "created_at": "2025-09-01T17:59:50.194606+00:00",
+  "updated_at": "2025-09-01T17:59:50.194609+00:00",
+  "progress": 1.0,
+  "message": "Pipeline complete",
+  "error": null,
+  "artifacts": {
+    "sheet_index": "artifacts/smoke_test_job_lifecycle/sheet_index.json",
+    "spec_index": "artifacts/smoke_test_job_lifecycle/spec_index.json"
+  },
+  "meta": {
+    "summary": {},
+    "pdf_path": null,
+    "completed_at": 1756749590.201426
+  }
+}

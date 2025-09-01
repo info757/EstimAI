@@ -43,32 +43,32 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 ## PR 4 — Frontend Async UX
 **Goal**: Add UI to run pipeline asynchronously and track status.  
 **Acceptance Criteria**
-- [ ] Project page shows **Generate Bid PDF** and **Run Full Pipeline**.  
-- [ ] Clicking **Run Full Pipeline** → calls `pipeline_async`, starts polling `GET /jobs/{id}`.  
-- [ ] On success → toast “Pipeline completed” + artifacts auto-refresh.  
-- [ ] On failure → toast with error message.  
-- [ ] Artifacts list always renders working download links.  
+- [X] Project page shows **Generate Bid PDF** and **Run Full Pipeline**.  
+- [X] Clicking **Run Full Pipeline** → calls `pipeline_async`, starts polling `GET /jobs/{id}`.  
+- [X] On success → toast “Pipeline completed” + artifacts auto-refresh.  
+- [X] On failure → toast with error message.  
+- [X] Artifacts list always renders working download links.  
 
 ---
 
 ## PR 5 — Stability & DX Guardrails
 **Goal**: Make local dev reliable and predictable.  
 **Acceptance Criteria**
-- [ ] `.env.example` includes pinned `ARTIFACT_DIR` (absolute path recommended).  
-- [ ] One backend start command (`make dev`).  
-- [ ] Startup logs print: `"/artifacts mounted at: <abs path>"`.  
-- [ ] Frontend docs list correct `VITE_API_BASE` and `VITE_FILE_BASE`.  
+- [x] `.env.example` includes pinned `ARTIFACT_DIR` (absolute path recommended).  
+- [x] One backend start command (`make dev`).  
+- [x ] Startup logs print: `"/artifacts mounted at: <abs path>"`.  
+- [x ] Frontend docs list correct `VITE_API_BASE` and `VITE_FILE_BASE`.  
 
 ---
 
 ## PR 6 — Tests (Smoke + Lifecycle)
 **Goal**: Add minimal backend tests for confidence.  
 **Acceptance Criteria**
-- [ ] **Bid smoke test**:  
+- [x ] **Bid smoke test**:  
   - Call `/bid`, fetch returned `pdf_path`, assert `200` and `Content-Type: application/pdf`.  
-- [ ] **Artifacts mount test**:  
+- [x ] **Artifacts mount test**:  
   - Place sentinel file in artifacts, assert `GET /artifacts` lists it and direct GET works.  
-- [ ] **Job lifecycle test**:  
+- [x ] **Job lifecycle test**:  
   - Call `/pipeline_async`, poll until `succeeded`, confirm returned `pdf_path` serves 200 and appears in artifacts.  
 
 ---
@@ -76,19 +76,19 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 ## PR 7 — Docs
 **Goal**: Ensure new devs can start in minutes.  
 **Acceptance Criteria**
-- [ ] **Dev Quickstart** in README: clone → copy `.env.example` → start backend/frontend.  
-- [ ] **NEXT_STEPS.md** updated with post-MVP priorities.  
-- [ ] **ENGINEERING_LOG.md** includes today’s decisions and path contracts.  
+- [x] **Dev Quickstart** in README: clone → copy `.env.example` → start backend/frontend.  
+- [x ] **NEXT_STEPS.md** updated with post-MVP priorities.  
+- [x ] **ENGINEERING_LOG.md** includes today’s decisions and path contracts.  
 
 ---
 
 ## PR 8 — HITL Overrides Layer
 **Goal**: Add scaffolding for human-in-the-loop review.  
 **Acceptance Criteria**
-- [ ] New directory `artifacts/{pid}/overrides/` created per project.  
-- [ ] Overrides JSON format defined (row-level patches `{ id, fields…, by, reason }`).  
-- [ ] Merged views = base ⊕ overrides, used when available.  
-- [ ] `bid` endpoint generates from reviewed state if overrides exist.  
+- [x ] New directory `artifacts/{pid}/overrides/` created per project.  
+- [x ] Overrides JSON format defined (row-level patches `{ id, fields…, by, reason }`).  
+- [x ] Merged views = base ⊕ overrides, used when available.  
+- [x ] `bid` endpoint generates from reviewed state if overrides exist.  
 
 ---
 

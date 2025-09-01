@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 
 from ..core.paths import artifacts_root, project_dir, stage_dir
+from .overrides import get_reviewed_or_base
 
 # Use centralized paths helper - lazy initialization
 def _get_artifact_dir():
@@ -30,7 +31,12 @@ def _load_scope(pid: str) -> Dict[str, Any]:
     scope_dir = stage_dir(pid, "scope")
     jf = _latest_file(scope_dir, ".json")
     if jf:
-        return _read_json(jf)
+        base_data = _read_json(jf)
+        # Use reviewed version if available, otherwise base
+        if "inclusions" in base_data and base_data["inclusions"]:
+            reviewed_inclusions = get_reviewed_or_base(pid, "scope", base_data["inclusions"])
+            base_data["inclusions"] = reviewed_inclusions
+        return base_data
     return {"project_id": pid, "scopes": []}
 
 
@@ -38,7 +44,18 @@ def _load_estimate(pid: str) -> Dict[str, Any]:
     est_dir = stage_dir(pid, "estimate")
     jf = _latest_file(est_dir, ".json")
     if jf:
-        return _read_json(jf)
+        base_data = _read_json(jf)
+        # Use reviewed version if available, otherwise base
+        if "items" in base_data and base_data["items"]:
+            reviewed_items = get_reviewed_or_base(pid, "estimate", base_data["items"])
+            base_data["items"] = reviewed_items
+            # Recalculate totals with reviewed items
+            new_subtotal = sum(item.get('total', 0) for item in reviewed_items)
+            overhead_pct = float(base_data.get("overhead_pct", 10.0))
+            profit_pct = float(base_data.get("profit_pct", 5.0))
+            base_data["subtotal"] = new_subtotal
+            base_data["total_bid"] = new_subtotal * (1 + overhead_pct/100.0) * (1 + profit_pct/100.0)
+        return base_data
     # Minimal empty shape
     return {
         "project_id": pid,

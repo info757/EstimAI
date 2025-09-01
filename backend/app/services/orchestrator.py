@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 from ..core.paths import artifacts_root, project_dir, stage_dir
+from .overrides import merge_stage_with_overrides, ensure_overrides_dir
 
 def _artifact_dir() -> Path:
     # Use centralized paths helper
@@ -147,11 +148,24 @@ async def ingest(pid: str, file: UploadFile):
 async def run_takeoff(pid: str) -> TakeoffOutput:
     result = await takeoff_agent.run(pid)
     await _write_artifact(pid, "takeoff", result.model_dump())
+    
+    # Apply overrides if they exist
+    if hasattr(result, 'items') and result.items:
+        merged_items = merge_stage_with_overrides(pid, "takeoff", result.items)
+        # Update result with merged items
+        result.items = merged_items
+    
     return result
 
 async def run_scope(pid: str) -> ScopeOutput:
     result = await scope_agent.run(pid)
     await _write_artifact(pid, "scope", result.model_dump())
+    
+    # Apply overrides if they exist
+    if hasattr(result, 'inclusions') and result.inclusions:
+        merged_inclusions = merge_stage_with_overrides(pid, "scope", result.inclusions)
+        result.inclusions = merged_inclusions
+    
     return result
 
 async def run_leveler(pid: str) -> List[LevelingResult]:
@@ -214,6 +228,18 @@ async def run_estimate(pid: str) -> EstimateOutput:
 
     # Persist artifact alongside your other agents
     await _write_artifact(pid, "estimate", est.model_dump())
+    
+    # Apply overrides if they exist
+    if est.items:
+        merged_items = merge_stage_with_overrides(pid, "estimate", [item.model_dump() for item in est.items])
+        # Recalculate totals with overridden values
+        new_subtotal = sum(item.get('total', 0) for item in merged_items)
+        new_total_bid = new_subtotal * (1 + overhead_pct/100.0) * (1 + profit_pct/100.0)
+        
+        # Update estimate with merged items and recalculated totals
+        est.items = [EstimateItem(**item) for item in merged_items]
+        est.subtotal = new_subtotal
+        est.total_bid = new_total_bid
 
     return est
 

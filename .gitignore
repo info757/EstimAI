@@ -67,7 +67,8 @@ docs/_build/
 # Secrets / config
 # =====================
 .env
-.env.*
+.env.local
+.env.production
 *.secret
 *.key
 

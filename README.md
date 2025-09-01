@@ -4,63 +4,73 @@ Multi-agent estimating application with async pipeline orchestration.
 
 ## Dev Quickstart
 
-### 1. Environment Setup
+### Prereqs
+- Python 3.11+
+- Node 18+ and npm
+- Make (optional but recommended)
 
+### Setup
 ```bash
-# Copy environment template
+git clone <YOUR_REPO_URL>
+cd estimai
 cp .env.example .env
+# Edit .env and set an ABSOLUTE ARTIFACT_DIR path
 
-# Edit .env and set your absolute artifact directory path
-# Example: ARTIFACT_DIR=/Users/yourname/estimai/backend/artifacts
-```
-
-### 2. Backend Setup
-
-```bash
 # Create virtual environment
 python3.11 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Start backend server
-make dev
+cd frontend && npm install && cd ..
 ```
 
-The backend will start at `http://localhost:8000` with:
-- API docs at `http://localhost:8000/docs`
-- Artifacts served at `http://localhost:8000/artifacts/`
-
-### 3. Frontend Setup
-
+### Run
 ```bash
-# In a new terminal, start frontend
-make web
+make dev    # Backend at http://localhost:8000
+make web    # Frontend at http://localhost:5173
 ```
 
-The frontend will start at `http://localhost:5173` (or 5174 if 5173 is busy).
+### Test
+```bash
+make test   # Run backend tests
+```
 
-### 4. Environment Variables
+## Path Contracts
 
-**Backend:**
-- `ARTIFACT_DIR`: Absolute path to artifacts directory (required)
-- `CORS_ORIGINS`: Comma-separated list of allowed origins
+### Artifact Directory Structure
+```
+backend/artifacts/
+├── {project_id}/
+│   ├── docs/           # Uploaded PDFs
+│   ├── takeoff/        # Takeoff analysis results
+│   ├── scope/          # Scope analysis results  
+│   ├── leveler/        # Leveling results
+│   ├── risk/           # Risk analysis results
+│   ├── estimate/       # Cost estimates
+│   ├── bid/            # Generated bid PDFs
+│   ├── sheet_index.json    # Document metadata
+│   └── spec_index.json     # Specification chunks
+```
+
+### Environment Variables
+**Required:**
+- `ARTIFACT_DIR`: Absolute path to artifacts directory
+
+**Optional:**
+- `CORS_ORIGINS`: Comma-separated allowed origins
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `VITE_API_BASE`: Backend API URL (default: http://localhost:8000/api)
+- `VITE_FILE_BASE`: File serving URL (default: http://localhost:8000)
 
-**Frontend:**
-- `VITE_API_BASE`: Backend API base URL (default: `http://localhost:8000/api`)
-- `VITE_FILE_BASE`: Backend file serving URL (default: `http://localhost:8000`)
+### API Endpoints
+- `POST /api/projects/{pid}/ingest` - Upload documents
+- `POST /api/projects/{pid}/pipeline_async` - Start async pipeline
+- `GET /api/jobs/{job_id}` - Check job status
+- `POST /api/projects/{pid}/bid` - Generate bid PDF
+- `GET /api/projects/{pid}/artifacts` - List artifacts
 
-### 5. Usage
-
-1. **Upload Documents**: Use the upload page to add PDFs to a project
-2. **Run Pipeline**: Click "Run Full Pipeline" to execute all agents asynchronously
-3. **Generate Bid**: Click "Generate Bid PDF" to create a bid document
-4. **Monitor Progress**: Watch job status and download artifacts
-
-### 6. Development Commands
-
+### Development Commands
 ```bash
 make dev    # Start backend with hot reload
 make web    # Start frontend development server
@@ -70,17 +80,17 @@ make lint   # Lint code
 make clean  # Clear caches
 ```
 
-## Architecture
+## Troubleshooting
 
-- **Backend**: FastAPI with async job processing
-- **Frontend**: React + TypeScript + Vite
-- **Agents**: Takeoff → Scope → Leveler → Risk → Estimate → Bid
-- **Storage**: File-based artifacts with JSON metadata
+**curl hangs in terminal**
+- Verify backend is running: `make dev` → Uvicorn on :8000
+- Hit `/docs` or `/health` first to confirm server is live
+- If route isn't implemented yet (e.g., `/api/jobs` before PR 3), curl will wait and appear to "hang"
 
-## API Endpoints
+**Artifacts 404**
+- Ensure `ARTIFACT_DIR` is an ABSOLUTE path and exists
+- Confirm startup log: `/artifacts mounted at: <abs path>`
+- Make sure frontend uses `VITE_FILE_BASE` for links
 
-- `POST /api/projects/{pid}/ingest` - Upload project documents
-- `POST /api/projects/{pid}/pipeline_async` - Start async pipeline
-- `GET /api/jobs/{job_id}` - Check job status
-- `POST /api/projects/{pid}/bid` - Generate bid PDF
-- `GET /api/projects/{pid}/artifacts` - List project artifacts
+**CORS errors**
+- Check `CORS_ORIGINS` in `.env` includes `http://localhost:5173`

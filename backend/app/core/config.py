@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = [".env", "../.env", "../../.env"]
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Allow extra fields from .env
 
 
 # Global settings instance
