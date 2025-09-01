@@ -8,11 +8,13 @@ from app.services.bid import build_bid_pdf
 from pathlib import Path
 from .routes_projects import router as projects_router
 from .routes_jobs import router as jobs_router
+from .routes_review import router as review_router
 import os
 
 r = APIRouter()
 r.include_router(projects_router)
 r.include_router(jobs_router)
+r.include_router(review_router)
 
 @r.post("/projects/{pid}/ingest", tags=["projects"])
 async def ingest(pid: str, file: UploadFile = File(...)):

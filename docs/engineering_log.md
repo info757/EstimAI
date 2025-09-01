@@ -38,6 +38,49 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 **Risks/Notes:** versioning/merge conflicts; provenance fields important.
 
+### 2025-09-02 17:00 — PR 9: Review Endpoints
+
+**Context:** Exposed review endpoints for HITL.
+
+**Change:** Added GET/PATCH /review/takeoff and /review/estimate; models in models/review.py; integrated overrides service.
+
+**Endpoints touched:**
+- GET/PATCH /api/projects/{pid}/review/takeoff
+- GET/PATCH /api/projects/{pid}/review/estimate
+
+**Artifacts shape/paths:** overrides remain in artifacts/{pid}/overrides/*.json; merged views returned by API, not persisted unless pipeline re-runs.
+
+**Risks/Notes:** Row id stability is required across runs; ensure id assignment is deterministic in upstream stages.
+
+### 2025-09-02 18:00 — PR 9 Enhancement: OpenAPI Examples
+
+**Context:** Enriched review endpoints with comprehensive OpenAPI examples and documentation.
+
+**Change:** Added json_schema_extra examples to all Pydantic models; enhanced endpoint docstrings with override behavior documentation; documented "last write wins" and provenance tracking.
+
+**Endpoints touched:** Same as PR 9 (enhancement only)
+
+**Artifacts shape/paths:** Enhanced examples showing:
+- ReviewResponse with 2 rows (one with override, one without)
+- PatchRequest with realistic patch example
+- Confidence scores and provenance fields
+
+**Risks/Notes:** 10/10 tests still passing; OpenAPI schema validates correctly.
+
+### 2025-09-02 19:00 — PR 9 Add-on: Review Roundtrip Tests
+
+**Context:** Added minimal pytest for review endpoint roundtrip functionality.
+
+**Change:** Created tests/test_review_roundtrip.py with full GET -> PATCH -> GET flow testing; mocked pipeline services for controlled testing; verified override application and merged results.
+
+**Endpoints touched:** Same as PR 9 (test coverage only)
+
+**Artifacts shape/paths:** Test fixtures with realistic data:
+- takeoff: qty changes (100 -> 150)
+- estimate: unit_cost changes (45.0 -> 55.0, 120.0 -> 130.0) + profit_pct
+
+**Risks/Notes:** 12/12 review tests passing; roundtrip tests verify full override workflow.
+
 ---
 
 ### 2025-09-01 16:00 — PR 8: HITL Overrides Layer
