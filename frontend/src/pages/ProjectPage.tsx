@@ -159,6 +159,25 @@ export default function ProjectPage() {
         </div>
       </div>
 
+      {/* Review Section */}
+      <div className="grid gap-3">
+        <div className="text-lg font-semibold">Review</div>
+        <div className="flex gap-3">
+          <a
+            href={`/projects/${pid}/review/takeoff`}
+            className="rounded-2xl px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
+          >
+            Review Quantities
+          </a>
+          <a
+            href={`/projects/${pid}/review/estimate`}
+            className="rounded-2xl px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+          >
+            Review Pricing
+          </a>
+        </div>
+      </div>
+
       {error && (
         <div className="rounded-xl p-4 bg-red-50 text-red-700 text-sm whitespace-pre-wrap">
           {error}

@@ -3,7 +3,11 @@ import type {
   JobResponse, 
   PipelineAsyncResponse, 
   BidResponse, 
-  ArtifactsResponse 
+  ArtifactsResponse,
+  ReviewResponse,
+  Patch,
+  PatchResponse,
+  PipelineSyncResponse
 } from '../types/api';
 
 export const API_BASE = 
@@ -51,9 +55,21 @@ export const post = <T>(path: string, body?: unknown, init?: RequestInit) =>
           : undefined,
   });
 
+export const patch = <T>(path: string, body?: unknown, init?: RequestInit) =>
+  api<T>(path, {
+    ...init,
+    method: 'PATCH',
+    body:
+      body instanceof FormData
+        ? body
+        : body !== undefined
+          ? JSON.stringify(body)
+          : undefined,
+  });
+
 // Helper to compute browser-openable file URLs
 export function fileUrl(path: string): string {
-  return `${FILE_BASE}/${path}`;
+  return `${FILE_BASE}${path}`;
 }
 
 // API Methods for PR 4
@@ -78,4 +94,27 @@ export async function generateBid(pid: string): Promise<BidResponse> {
     // Fallback to GET if POST not allowed
     return await get<BidResponse>(base);
   }
+}
+
+// Review API Methods for PR 10
+
+export async function getTakeoffReview(pid: string): Promise<ReviewResponse> {
+  return await get<ReviewResponse>(`/projects/${encodeURIComponent(pid)}/review/takeoff`);
+}
+
+export async function patchTakeoffReview(pid: string, patches: Patch[]): Promise<PatchResponse> {
+  return await patch<PatchResponse>(`/projects/${encodeURIComponent(pid)}/review/takeoff`, { patches });
+}
+
+export async function getEstimateReview(pid: string): Promise<ReviewResponse> {
+  return await get<ReviewResponse>(`/projects/${encodeURIComponent(pid)}/review/estimate`);
+}
+
+export async function patchEstimateReview(pid: string, patches: Patch[]): Promise<PatchResponse> {
+  return await patch<PatchResponse>(`/projects/${encodeURIComponent(pid)}/review/estimate`, { patches });
+}
+
+// Pipeline sync method
+export async function pipelineSync(pid: string): Promise<PipelineSyncResponse> {
+  return await post<PipelineSyncResponse>(`/projects/${encodeURIComponent(pid)}/pipeline_sync`);
 }

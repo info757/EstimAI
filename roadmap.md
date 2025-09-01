@@ -95,10 +95,10 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 ## PR 9 — Review Endpoints
 **Goal**: Expose review data to the frontend.  
 **Acceptance Criteria**
-- [ ] `GET /api/projects/{pid}/review/takeoff` returns merged rows (with AI + overrides + confidence).  
-- [ ] `PATCH /api/projects/{pid}/review/takeoff` upserts overrides.  
-- [ ] `GET /api/projects/{pid}/review/estimate` returns merged cost table.  
-- [ ] `PATCH /api/projects/{pid}/review/estimate` allows editing unit_cost, markups.  
+- [x ] `GET /api/projects/{pid}/review/takeoff` returns merged rows (with AI + overrides + confidence).  
+- [x ] `PATCH /api/projects/{pid}/review/takeoff` upserts overrides.  
+- [x ] `GET /api/projects/{pid}/review/estimate` returns merged cost table.  
+- [x ] `PATCH /api/projects/{pid}/review/estimate` allows editing unit_cost, markups.  
 
 ---
 
@@ -110,6 +110,14 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 - [ ] Save overrides via PATCH endpoints.  
 - [ ] Recalculate + “Continue Pipeline” button resumes job.  
 - [ ] Bid PDF generated from reviewed state.  
+
+**Acceptance checks:**
+- From `/projects/:pid`, I can click:
+  • Review Quantities → edit qty/unit/desc/cost-code; Save overrides; Recalculate → navigates back; new PDF link appears in artifacts.
+  • Review Pricing → edit unit_cost/overhead/profit/contingency; Save overrides; Recalculate → navigates back; new PDF link appears.
+- After Save, GET `/review/*` reflects merged changes; override block populated for edited rows.
+- Recalculate calls `pipelineSync` and returns a browser-openable `pdf_path`; toast includes an "Open PDF" link using `VITE_FILE_BASE`.
+- Buttons show proper disabled/loading states; errors show a toast.
 
 ---
 

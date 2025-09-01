@@ -1,44 +1,59 @@
 // frontend/src/components/Toast.tsx
-import { useEffect, useState } from 'react';
+import React from 'react';
 
-export type ToastType = 'success' | 'error';
-
-export interface ToastProps {
-  type: ToastType;
-  message: string;
-  onClose: () => void;
-  duration?: number;
+export interface ToastOptions {
+  link?: string;
+  label?: string;
+  type?: 'success' | 'error' | 'info';
 }
 
-export default function Toast({ type, message, onClose, duration = 5000 }: ToastProps) {
-  const [isVisible, setIsVisible] = useState(true);
+interface ToastProps {
+  message: string;
+  options?: ToastOptions;
+  onDismiss: () => void;
+}
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(onClose, 300); // Wait for fade out animation
-    }, duration);
+export default function Toast({ message, options, onDismiss }: ToastProps) {
+  const { link, label, type = 'info' } = options || {};
 
-    return () => clearTimeout(timer);
-  }, [duration, onClose]);
-
-  const baseClasses = "fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-opacity duration-300";
-  const typeClasses = type === 'success' 
-    ? "bg-green-50 text-green-800 border border-green-200" 
-    : "bg-red-50 text-red-800 border border-red-200";
+  const getToastStyles = () => {
+    const baseStyles = "fixed top-4 right-4 max-w-sm p-4 rounded-lg shadow-lg border-l-4 z-50";
+    
+    switch (type) {
+      case 'success':
+        return `${baseStyles} bg-green-50 border-green-400 text-green-800`;
+      case 'error':
+        return `${baseStyles} bg-red-50 border-red-400 text-red-800`;
+      case 'info':
+      default:
+        return `${baseStyles} bg-blue-50 border-blue-400 text-blue-800`;
+    }
+  };
 
   return (
-    <div className={`${baseClasses} ${typeClasses} ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{message}</span>
+    <div className={getToastStyles()}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium">{message}</p>
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-2 text-sm underline hover:opacity-80"
+            >
+              {label || 'Open Link'}
+            </a>
+          )}
+        </div>
         <button
-          onClick={() => {
-            setIsVisible(false);
-            setTimeout(onClose, 300);
-          }}
-          className="ml-4 text-gray-400 hover:text-gray-600"
+          onClick={onDismiss}
+          className="ml-4 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Dismiss toast"
         >
-          ×
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     </div>

@@ -42,3 +42,41 @@ export interface ArtifactItem {
   type?: string;
   created_at?: string;
 }
+
+// Review types for PR 10
+export type ReviewRow = {
+  id: string;
+  ai: Record<string, any>;
+  override?: Record<string, any> | null;
+  merged: Record<string, any>;
+  confidence?: number | null;
+};
+
+export type ReviewResponse = { 
+  rows: ReviewRow[];
+  project_id: string;
+  stage: string;
+  total_rows: number;
+  overridden_rows: number;
+};
+
+export type Patch = {
+  id: string;
+  fields: Record<string, any>;
+  by: string;
+  reason?: string | null;
+  at: string; // ISO
+};
+
+export type PatchResponse = {
+  ok: boolean;
+  patched: number;
+  project_id: string;
+  stage: string;
+  message: string;
+};
+
+export type PipelineSyncResponse = {
+  summary: any;
+  pdf_path: string;
+};

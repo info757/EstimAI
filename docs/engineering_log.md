@@ -81,6 +81,90 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 **Risks/Notes:** 12/12 review tests passing; roundtrip tests verify full override workflow.
 
+### 2025-09-02 20:00 — PR 10: Frontend Review UI API Client
+
+**Context:** Added frontend API client methods for review endpoints and pipeline sync.
+
+**Change:** Extended frontend/src/types/api.ts with ReviewRow, ReviewResponse, Patch, PatchResponse types; added getTakeoffReview, patchTakeoffReview, getEstimateReview, patchEstimateReview methods; exported pipelineSync and fileUrl functions.
+
+**Endpoints touched:** Frontend API client integration (no new backend endpoints)
+
+**Artifacts shape/paths:** TypeScript types matching backend ReviewResponse structure; fileUrl helper for constructing browser-openable URLs.
+
+**Risks/Notes:** TypeScript compilation verified; all types properly exported; ready for React component integration.
+
+### 2025-09-02 21:00 — PR 10: Frontend Review UI Pages & Routes
+
+**Context:** Implemented React pages and routing for review UI with editable tables and override management.
+
+**Change:** Created ReviewTakeoffPage and ReviewEstimatePage with editable tables, dirty state tracking, and API integration; added routes /projects/:pid/review/takeoff and /projects/:pid/review/estimate; added navigation links to ProjectPage.
+
+**Endpoints touched:** Frontend routing and UI components (no new backend endpoints)
+
+**Artifacts shape/paths:** Editable table UI showing AI values, user values, confidence, and diffs; dirty state tracking for changed fields; patch computation for API calls.
+
+**Risks/Notes:** TypeScript compilation verified; ready for user testing; navigation links added to ProjectPage for easy access.
+
+### 2025-09-02 22:00 — PR 10 Enhancement: Reusable ReviewTable Component
+
+**Context:** Refactored review pages to use a shared, reusable table component for better maintainability and consistency.
+
+**Change:** Created frontend/src/components/ReviewTable.tsx with configurable editable keys, confidence display, and diff calculation; updated both ReviewTakeoffPage and ReviewEstimatePage to use the component; removed duplicate table logic.
+
+**Endpoints touched:** Frontend UI components only (no backend changes)
+
+**Artifacts shape/paths:** ReviewTable component with props for rows, editableKeys, onChange handler, optional getDiff function, and confidenceKey; consistent UI across takeoff and estimate review pages.
+
+**Risks/Notes:** Component is "dumb" - parent pages manage state; editable keys are configurable per page type; confidence display with color coding (green/yellow/red based on threshold).
+
+### 2025-09-02 23:00 — PR 10 Refactor: ReviewTakeoffPage State Management
+
+**Context:** Simplified ReviewTakeoffPage state management to work seamlessly with ReviewTable component.
+
+**Change:** Refactored state from complex EditableRow interface to simple edited Record; implemented onChange handler, buildPatches, saveOverrides, and handleRecalc functions; updated ReviewTable to accept editedValues prop for real-time editing feedback.
+
+**Endpoints touched:** Frontend UI components only (no backend changes)
+
+**Artifacts shape/paths:** Simplified state: {id: {key: value}} for tracking edits; ReviewTable now shows edited values in inputs and highlights changed cells; clean separation between data fetching and editing state.
+
+**Risks/Notes:** TypeScript compilation verified; state management simplified from ~100 lines to ~50 lines; ReviewTable component enhanced to handle both merged and edited values.
+
+### 2025-09-02 24:00 — PR 10 Complete: ReviewEstimatePage Refactoring
+
+**Context:** Completed ReviewEstimatePage refactoring to match ReviewTakeoffPage structure and use ReviewTable component.
+
+**Change:** Refactored ReviewEstimatePage with same state management pattern; implemented estimate-specific editableKeys ["unit_cost", "overhead", "profit", "contingency"]; added custom diff calculation and totals summary section; integrated with ReviewTable component.
+
+**Endpoints touched:** Frontend UI components only (no backend changes)
+
+**Artifacts shape/paths:** Estimate-specific editable fields; totals calculation for qty × unit_cost with AI vs edited comparison; custom diff function for numeric fields; totals summary section showing financial impact of changes.
+
+**Risks/Notes:** TypeScript compilation verified; both review pages now use consistent architecture; totals calculation provides business value insight for estimate changes.
+
+### 2025-09-02 25:00 — PR 10 Navigation: ProjectPage Review Section
+
+**Context:** Added dedicated Review section to ProjectPage for easy access to review screens.
+
+**Change:** Reorganized ProjectPage layout to separate main actions from review actions; created dedicated "Review" section with "Review Quantities" (takeoff) and "Review Pricing" (estimate) buttons; maintained existing "Generate Bid PDF" and "Run Full Pipeline" buttons.
+
+**Endpoints touched:** Frontend UI layout only (no backend changes)
+
+**Artifacts shape/paths:** Clear separation between pipeline actions and review actions; intuitive navigation flow from project overview to specific review screens; consistent button styling and hover effects.
+
+**Risks/Notes:** TypeScript compilation verified; improved user experience with logical grouping of related actions; review buttons now have descriptive labels ("Quantities" vs "Pricing").
+
+### 2025-09-02 26:00 — PR 10 Toast System: Minimal Notification System
+
+**Context:** Implemented minimal toast notification system to replace alerts in review pages.
+
+**Change:** Created Toast component with support for links and types; implemented ToastContext with useToast hook; wrapped app with ToastProvider; updated both review pages to use toast() instead of alert().
+
+**Endpoints touched:** Frontend UI components only (no backend changes)
+
+**Artifacts shape/paths:** Toast component with options: { link?, label?, type? }; ToastContext with auto-dismiss after 5 seconds; useToast() hook for easy integration; success/error/info types with color coding.
+
+**Risks/Notes:** TypeScript compilation verified; toast system provides better UX than alerts; auto-dismiss prevents notification clutter; link support enables direct PDF access from success messages.
+
 ---
 
 ### 2025-09-01 16:00 — PR 8: HITL Overrides Layer
