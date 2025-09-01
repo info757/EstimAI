@@ -3,19 +3,17 @@ import os
 import json
 import time
 import logging
+import asyncio
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-from typing import List
+from typing import List, Dict, Any
 
 from fastapi import UploadFile, HTTPException
 
 
-from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
+from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput, EstimateItem, EstimateOutput
 from ..agents import takeoff_agent, scope_agent, leveler_agent, risk_agent
-
-from typing import Dict, Any  # add
-from ..models.schemas import EstimateItem, EstimateOutput  # add (next to your other schema imports)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -223,113 +221,73 @@ async def run_estimate(pid: str) -> EstimateOutput:
 
 async def run_full_pipeline(pid: str) -> Dict[str, Any]:
     """
+    Run all agents in sequence and persist their artifacts under:
+      backend/artifacts/<pid>/<agent>/<timestamp>.json
+    Returns a summary dict with any errors encountered.
+    """
+    summary: Dict[str, Any] = {"project_id": pid, "steps": {}, "errors": []}
+
+    # Takeoff
+    try:
+        to = await run_takeoff(pid)
+        summary["steps"]["takeoff"] = {"ok": True, "count": len(getattr(to, "items", []))}
+    except Exception as e:
+        summary["steps"]["takeoff"] = {"ok": False}
+        summary["errors"].append({"takeoff": str(e)})
+
+    # Scope
+    try:
+        sc = await run_scope(pid)
+        summary["steps"]["scope"] = {"ok": True, "inclusions": len(getattr(sc, "inclusions", []) or []),
+                                     "exclusions": len(getattr(sc, "exclusions", []) or [])}
+    except Exception as e:
+        summary["steps"]["scope"] = {"ok": False}
+        summary["errors"].append({"scope": str(e)})
+
+    # Leveler
+    try:
+        lv = await run_leveler(pid)
+        summary["steps"]["leveler"] = {"ok": True, "normalized": len(lv or [])}
+    except Exception as e:
+        summary["steps"]["leveler"] = {"ok": False}
+        summary["errors"].append({"leveler": str(e)})
+
+    # Risk
+    try:
+        rk = await run_risk(pid)
+        summary["steps"]["risk"] = {"ok": True, "risks": len(getattr(rk, "risks", []) or [])}
+    except Exception as e:
+        summary["steps"]["risk"] = {"ok": False}
+        summary["errors"].append({"risk": str(e)})
+
+    # Estimate (last, depends on takeoff)
+    try:
+        est = await run_estimate(pid)
+        summary["steps"]["estimate"] = {
+            "ok": True,
+            "items": len(getattr(est, "items", []) or []),
+            "subtotal": getattr(est, "subtotal", 0.0),
+            "total_bid": getattr(est, "total_bid", 0.0),
+        }
+    except Exception as e:
+        summary["steps"]["estimate"] = {"ok": False}
+        summary["errors"].append({"estimate": str(e)})
+
+    summary["ok"] = len(summary["errors"]) == 0
+    return summary
+
+
+def run_full_pipeline_sync(pid: str) -> Dict[str, Any]:
+    """
+    Synchronous version of run_full_pipeline for use in background workers.
     Run all agents in sequence: takeoff → scope → leveler → risk → estimate → bid
     Persist artifacts under: backend/artifacts/<pid>/<stage>/<timestamp>.json
     Returns: { "summary": {...}, "pdf_path": "artifacts/<pid>/bid/<file>.pdf" }
     """
-    logger.info(f"Starting full pipeline for project {pid}")
-    summary: Dict[str, Any] = {"project_id": pid, "steps": {}, "errors": []}
-    pdf_path = None
-
-    # Stage 1: Takeoff
-    logger.info(f"[{pid}] Stage 1/6: Running takeoff analysis")
+    # Run the async function in a new event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        to = await run_takeoff(pid)
-        item_count = len(getattr(to, "items", []))
-        summary["steps"]["takeoff"] = {"ok": True, "count": item_count}
-        logger.info(f"[{pid}] ✓ Takeoff completed: {item_count} items found")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["takeoff"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"takeoff": error_msg})
-        logger.error(f"[{pid}] ✗ Takeoff failed: {error_msg}")
-
-    # Stage 2: Scope
-    logger.info(f"[{pid}] Stage 2/6: Running scope analysis")
-    try:
-        sc = await run_scope(pid)
-        inclusions = len(getattr(sc, "inclusions", []) or [])
-        exclusions = len(getattr(sc, "exclusions", []) or [])
-        summary["steps"]["scope"] = {"ok": True, "inclusions": inclusions, "exclusions": exclusions}
-        logger.info(f"[{pid}] ✓ Scope completed: {inclusions} inclusions, {exclusions} exclusions")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["scope"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"scope": error_msg})
-        logger.error(f"[{pid}] ✗ Scope failed: {error_msg}")
-
-    # Stage 3: Leveler
-    logger.info(f"[{pid}] Stage 3/6: Running leveler analysis")
-    try:
-        lv = await run_leveler(pid)
-        normalized_count = len(lv or [])
-        summary["steps"]["leveler"] = {"ok": True, "normalized": normalized_count}
-        logger.info(f"[{pid}] ✓ Leveler completed: {normalized_count} items normalized")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["leveler"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"leveler": error_msg})
-        logger.error(f"[{pid}] ✗ Leveler failed: {error_msg}")
-
-    # Stage 4: Risk
-    logger.info(f"[{pid}] Stage 4/6: Running risk analysis")
-    try:
-        rk = await run_risk(pid)
-        risk_count = len(getattr(rk, "risks", []) or [])
-        summary["steps"]["risk"] = {"ok": True, "risks": risk_count}
-        logger.info(f"[{pid}] ✓ Risk analysis completed: {risk_count} risks identified")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["risk"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"risk": error_msg})
-        logger.error(f"[{pid}] ✗ Risk analysis failed: {error_msg}")
-
-    # Stage 5: Estimate (depends on takeoff)
-    logger.info(f"[{pid}] Stage 5/6: Running estimate generation")
-    try:
-        est = await run_estimate(pid)
-        item_count = len(getattr(est, "items", []) or [])
-        subtotal = getattr(est, "subtotal", 0.0)
-        total_bid = getattr(est, "total_bid", 0.0)
-        summary["steps"]["estimate"] = {
-            "ok": True,
-            "items": item_count,
-            "subtotal": subtotal,
-            "total_bid": total_bid,
-        }
-        logger.info(f"[{pid}] ✓ Estimate completed: {item_count} items, ${total_bid:,.2f} total")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["estimate"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"estimate": error_msg})
-        logger.error(f"[{pid}] ✗ Estimate failed: {error_msg}")
-
-    # Stage 6: Bid PDF Generation
-    logger.info(f"[{pid}] Stage 6/6: Generating bid PDF")
-    try:
-        from ..services.bid import build_bid_pdf
-        pdf_abs_path = build_bid_pdf(pid)
-        pdf_filename = Path(pdf_abs_path).name
-        pdf_path = f"artifacts/{pid}/bid/{pdf_filename}"
-        summary["steps"]["bid"] = {"ok": True, "pdf_path": pdf_path}
-        logger.info(f"[{pid}] ✓ Bid PDF generated: {pdf_path}")
-    except Exception as e:
-        error_msg = str(e)
-        summary["steps"]["bid"] = {"ok": False, "error": error_msg}
-        summary["errors"].append({"bid": error_msg})
-        logger.error(f"[{pid}] ✗ Bid PDF generation failed: {error_msg}")
-
-    # Final summary
-    success_count = sum(1 for step in summary["steps"].values() if step.get("ok", False))
-    total_steps = len(summary["steps"])
-    summary["ok"] = len(summary["errors"]) == 0
-    
-    if summary["ok"]:
-        logger.info(f"[{pid}] ✓ Pipeline completed successfully: {success_count}/{total_steps} stages")
-    else:
-        logger.warning(f"[{pid}] ⚠ Pipeline completed with errors: {success_count}/{total_steps} stages, {len(summary['errors'])} errors")
-    
-    return {
-        "summary": summary,
-        "pdf_path": pdf_path
-    }
+        return loop.run_until_complete(run_full_pipeline(pid))
+    finally:
+        loop.close()

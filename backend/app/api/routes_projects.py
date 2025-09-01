@@ -12,18 +12,20 @@ from ..workers.run_pipeline import run_pipeline as run_pipeline_job
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-@router.post("/{pid}/pipeline_async", response_model=JobRecord)
+@router.post("/{pid}/pipeline_async")
 def pipeline_async(pid: str):
     """
-    Kick off the full pipeline (takeoff -> scope -> leveler -> risk -> estimate -> bid_pdf)
-    as a background job. Returns a JobRecord immediately.
+    Kick off the full pipeline (takeoff → scope → leveler → risk → estimate → bid)
+    as a background job. Returns {job_id} immediately.
+    
+    Use GET /api/jobs/{job_id} to check the status of the background job.
     """
     job_id = uuid.uuid4().hex
     job = JobRecord(job_id=job_id, project_id=pid, job_type=JobType.pipeline)
     save_job(job)
     # Submit background job (defined in backend/app/workers/run_pipeline.py)
     EXECUTOR.submit(run_pipeline_job, job_id, pid)
-    return job
+    return {"job_id": job_id}
 
 
 @router.post("/{pid}/pipeline_sync")
