@@ -34,17 +34,19 @@ async def ingest(pid: str, file: UploadFile = File(...)):
             result["pdf_path"] = f"artifacts/{rel_path}"
             del result["saved_path"]  # Remove absolute path
         
-        # Convert index_path to relative path under /projects
+        # Convert index_path to relative path under /artifacts
         if "index_path" in result:
             abs_path = Path(result["index_path"])
-            rel_path = abs_path.relative_to(Path(__file__).resolve().parent.parent / "app" / "data" / "projects")
-            result["index_path"] = f"projects/{rel_path}"
+            artifact_dir = Path(os.getenv("ARTIFACT_DIR", str(Path(__file__).resolve().parent.parent / "artifacts")))
+            rel_path = abs_path.relative_to(artifact_dir)
+            result["index_path"] = f"artifacts/{rel_path}"
         
-        # Convert spec_index_path to relative path under /projects
+        # Convert spec_index_path to relative path under /artifacts
         if "spec_index_path" in result:
             abs_path = Path(result["spec_index_path"])
-            rel_path = abs_path.relative_to(Path(__file__).resolve().parent.parent / "app" / "data" / "projects")
-            result["spec_index_path"] = f"projects/{rel_path}"
+            artifact_dir = Path(os.getenv("ARTIFACT_DIR", str(Path(__file__).resolve().parent.parent / "artifacts")))
+            rel_path = abs_path.relative_to(artifact_dir)
+            result["spec_index_path"] = f"artifacts/{rel_path}"
         
         return result
     except HTTPException:

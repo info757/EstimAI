@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+      "composite": true,
+      "jsx": "react-jsx",
+      "module": "ESNext",
+      "moduleResolution": "Bundler",
+      "allowJs": false,
+      "esModuleInterop": true,
+      "lib": ["ESNext", "DOM"],
+      "isolatedModules": true,
+      "resolveJsonModule": true,
+      "noEmit": true,
+      "skipLibCheck": true,
+      "strict": true,
+      "forceConsistentCasingInFileNames": true
+    },
+    "include": ["src"]
+  }
+  
