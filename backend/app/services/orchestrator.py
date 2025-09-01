@@ -19,9 +19,11 @@ from ..agents import takeoff_agent, scope_agent, leveler_agent, risk_agent
 logger = logging.getLogger(__name__)
 
 
+from ..core.paths import artifacts_root, project_dir, stage_dir
+
 def _artifact_dir() -> Path:
-    # Always resolve to <project>/backend/artifacts unless ARTIFACT_DIR is set
-    return Path(os.getenv("ARTIFACT_DIR", str(PROJECT_ROOT / "backend" / "artifacts")))
+    # Use centralized paths helper
+    return artifacts_root()
 
 
 # -------------------------
@@ -67,8 +69,7 @@ def _load_costbook() -> dict[str, float]:
 
 async def _write_artifact(project_id: str, agent: str, payload: dict) -> None:
     ts = int(time.time())
-    out = _artifact_dir() / project_id / agent   # 👈 add ()
-    out.mkdir(parents=True, exist_ok=True)
+    out = stage_dir(project_id, agent)
     (out / f"{ts}.json").write_text(json.dumps(payload, indent=2))
 
 def write_index(pid: str) -> Path:
@@ -77,7 +78,7 @@ def write_index(pid: str) -> Path:
     Scan backend/artifacts/<pid>/docs/*.pdf and emit sheet_index.json with stub sheet IDs.
     Replace with real OCR/parsing later.
     """
-    proj_dir = _artifact_dir() / pid             # 👈 add ()
+    proj_dir = project_dir(pid)
     docs_dir = proj_dir / "docs"
     sheets = []
     if docs_dir.exists():
@@ -92,7 +93,6 @@ def write_index(pid: str) -> Path:
         sheets = [{"sheet_id": "A1.1", "file": "", "discipline": "Architectural", "title": "Stub"}]
 
     out = proj_dir / "sheet_index.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"project_id": pid, "sheets": sheets}, indent=2))
     return out
 
@@ -111,8 +111,7 @@ async def ingest(pid: str, file: UploadFile):
     if not filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
 
-    proj_docs = _artifact_dir() / pid / "docs"   # 👈 add ()
-    proj_docs.mkdir(parents=True, exist_ok=True)
+    proj_docs = stage_dir(pid, "docs")
 
     target = proj_docs / filename
     if target.exists():
@@ -173,8 +172,7 @@ async def run_estimate(pid: str) -> EstimateOutput:
     - Looks up unit_cost via description in costbook
     - Computes totals; persists artifact under artifacts/{pid}/estimate/<timestamp>.json
     """
-    proj_dir = _artifact_dir() / pid
-    proj_dir.mkdir(parents=True, exist_ok=True)
+    proj_dir = project_dir(pid)
 
     takeoff_items = _gather_takeoff_items(proj_dir)
     costbook = _load_costbook()

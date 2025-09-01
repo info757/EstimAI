@@ -1,9 +1,9 @@
 from pathlib import Path
-import os, json, pdfplumber
+import json, pdfplumber
+from ..core.paths import artifacts_root, project_dir, stage_dir
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 def _artifact_dir() -> Path:
-    return Path(os.getenv("ARTIFACT_DIR", str(PROJECT_ROOT / "backend" / "artifacts")))
+    return artifacts_root()
 
 
 def index_pdf(pid: str, pdf_path: Path) -> dict:
@@ -23,7 +23,7 @@ def index_pdf(pid: str, pdf_path: Path) -> dict:
     return {"project_id": pid, "sheets": sheets}
 
 def write_sheet_index(pid: str) -> Path:
-    proj = _artifact_dir() / pid
+    proj = project_dir(pid)
     docs = proj / "docs"
     sheets_all = []
     if docs.exists():

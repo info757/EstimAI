@@ -8,9 +8,11 @@ from typing import Any, Dict, List, Optional
 
 
 
-# Resolve repo root and artifacts root the same way other services do
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-ARTIFACT_DIR = Path(os.getenv("ARTIFACT_DIR", PROJECT_ROOT / "backend" / "artifacts"))
+from ..core.paths import artifacts_root, project_dir, stage_dir
+
+# Use centralized paths helper - lazy initialization
+def _get_artifact_dir():
+    return artifacts_root()
 
 
 def _read_json(path: Path) -> Any:
@@ -25,7 +27,7 @@ def _latest_file(dirpath: Path, suffix: str) -> Optional[Path]:
 
 
 def _load_scope(pid: str) -> Dict[str, Any]:
-    scope_dir = ARTIFACT_DIR / pid / "scope"
+    scope_dir = stage_dir(pid, "scope")
     jf = _latest_file(scope_dir, ".json")
     if jf:
         return _read_json(jf)
@@ -33,7 +35,7 @@ def _load_scope(pid: str) -> Dict[str, Any]:
 
 
 def _load_estimate(pid: str) -> Dict[str, Any]:
-    est_dir = ARTIFACT_DIR / pid / "estimate"
+    est_dir = stage_dir(pid, "estimate")
     jf = _latest_file(est_dir, ".json")
     if jf:
         return _read_json(jf)
@@ -49,7 +51,7 @@ def _load_estimate(pid: str) -> Dict[str, Any]:
 
 
 def _load_risks(pid: str) -> Dict[str, Any]:
-    risk_dir = ARTIFACT_DIR / pid / "risk"
+    risk_dir = stage_dir(pid, "risk")
     jf = _latest_file(risk_dir, ".json")
     if jf:
         return _read_json(jf)
@@ -73,15 +75,13 @@ def build_bid_pdf(pid: str) -> str:
     except ImportError as e:
         raise RuntimeError("Missing dependency 'reportlab'. Install with: pip install reportlab") from e
     
-    proj_dir = ARTIFACT_DIR / pid
-    _ensure_dir(proj_dir)
+    proj_dir = project_dir(pid)
 
     scope = _load_scope(pid)
     estimate = _load_estimate(pid)
     risks = _load_risks(pid)
 
-    out_dir = proj_dir / "bid"
-    _ensure_dir(out_dir)
+    out_dir = stage_dir(pid, "bid")
     ts = time.strftime("%Y%m%d-%H%M%S")
     pdf_path = (out_dir / f"{ts}.pdf").resolve()
 

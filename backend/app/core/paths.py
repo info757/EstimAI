@@ -1,0 +1,39 @@
+# backend/app/core/paths.py
+from pathlib import Path
+from .config import get_settings
+
+
+def artifacts_root() -> Path:
+    """Get the root artifacts directory."""
+    settings = get_settings()
+    return Path(settings.ARTIFACT_DIR)
+
+
+def project_dir(pid: str) -> Path:
+    """Get the project directory for a given project ID."""
+    project_path = artifacts_root() / pid
+    project_path.mkdir(parents=True, exist_ok=True)
+    return project_path
+
+
+def stage_dir(pid: str, stage: str) -> Path:
+    """Get the stage directory for a given project and stage."""
+    stage_path = project_dir(pid) / stage
+    stage_path.mkdir(parents=True, exist_ok=True)
+    return stage_path
+
+
+def docs_dir(pid: str) -> Path:
+    """Get the docs directory for a given project."""
+    return stage_dir(pid, "docs")
+
+
+def bid_dir(pid: str) -> Path:
+    """Get the bid directory for a given project."""
+    return stage_dir(pid, "bid")
+
+
+def ensure_dir(path: Path) -> Path:
+    """Ensure a directory exists and return the path."""
+    path.mkdir(parents=True, exist_ok=True)
+    return path
