@@ -135,21 +135,34 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 ## PR 11 — CI/CD Pipeline (GitHub Actions)
 **Goal**: Ensure every commit runs tests, lint, and build.  
 **Acceptance Criteria**
-- [ ] `.github/workflows/ci.yml` runs on push + PR to `main`.
-- [ ] Matrix: Python 3.11, Node 18.
-- [ ] Steps: checkout → install deps → lint → `make test` → frontend build.
-- [ ] CI uses temporary `ARTIFACT_DIR`.
-- [ ] Badge added to README.
+- [x ] `.github/workflows/ci.yml` runs on push + PR to `main`.
+- [x ] Matrix: Python 3.11, Node 18.
+- [x ] Steps: checkout → install deps → lint → `make test` → frontend build.
+- [x ] CI uses temporary `ARTIFACT_DIR`.
+- [x ] Badge added to README.
 
 ---
 
 ## PR 12 — Dockerization
 **Goal**: Containerize backend + frontend.  
 **Acceptance Criteria**
-- [ ] `Dockerfile.backend` (uvicorn app).  
-- [ ] `Dockerfile.frontend` (Vite build → nginx).  
-- [ ] `docker-compose.yml` with backend + frontend + artifacts volume.  
-- [ ] `make docker-up` starts full stack.  
+- [x ] `Dockerfile.backend` (uvicorn app).  
+- [x ] `Dockerfile.frontend` (Vite build → nginx).  
+- [x ] `docker-compose.yml` with backend + frontend + artifacts volume.  
+- [x ] `make docker-up` starts full stack.  
+
+---
+
+### Acceptance checks (paste these into your PR description)
+- [x ] `docker compose up -d --build` starts **backend:8000** and **frontend:8080**.
+- [x ] `curl http://localhost:8000/health` → `{ "status": "ok" }`.
+- [x ] Frontend loads at `http://localhost:8080` and can hit the backend (CORS ok).
+- [x ] Generating a bid creates a PDF under `./backend/artifacts/...` and it opens via `http://localhost:8000${pdf_path}`.
+- [x ] Restarting containers preserves artifacts (bind mount works).
+
+---
+
+
 
 ---
 

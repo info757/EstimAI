@@ -29,3 +29,22 @@ clean: ; find . -type d -name "__pycache__" -exec rm -rf {} + ; find . -type d -
 # Database commands (optional - requires Docker)
 db-up: ; docker compose up -d db
 db-down: ; docker compose down
+
+# Docker commands for PR 12
+docker-build-backend:
+	docker build -f Dockerfile.backend -t estimai-backend:latest .
+
+docker-build-frontend:
+	docker build -f Dockerfile.frontend -t estimai-frontend:latest .
+
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-restart:
+	docker compose restart

@@ -38,6 +38,19 @@ make web    # Frontend at http://localhost:5173
 make test   # Run backend tests
 ```
 
+## Run with Docker
+
+```bash
+# build and start (backend:8000, frontend:8080)
+docker compose up -d --build
+
+# follow logs
+docker compose logs -f
+
+# stop
+docker compose down
+```
+
 ## Path Contracts
 
 ### Artifact Directory Structure

@@ -14,6 +14,18 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-02 — PR 12: Dockerization
+
+**Context:** Containerized backend and frontend; added compose for local/prod-like runs.
+
+**Change:** Dockerfile.backend, Dockerfile.frontend, ops/nginx/frontend.conf, docker-compose.yml, .dockerignore files; Makefile docker targets; README Docker section.
+
+**Endpoints touched:** N/A
+
+**Artifacts:** bind-mounted at ./backend/artifacts <-> /app/backend/artifacts
+
+**Risks/Notes:** Frontend served at :8080; backend CORS includes http://localhost:8080
+
 ### 2025-09-02 — PR 11: CI/CD
 
 **Context:** Added GitHub Actions CI to enforce tests/lint and build frontend.

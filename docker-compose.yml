@@ -1,13 +1,32 @@
 version: "3.9"
+
 services:
-  db:
-    image: pgvector/pgvector:pg16
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: estimai-backend
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-estimai}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports: ["5432:5432"]
+      ARTIFACT_DIR: /app/backend/artifacts
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: http://localhost:8080
+    ports:
+      - "8000:8000"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # host artifacts -> container artifacts (persist across restarts)
+      - ./backend/artifacts:/app/backend/artifacts
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: estimai-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
 volumes:
-  pgdata:
+  # (named volume optional; we're using bind mount above for clarity)

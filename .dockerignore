@@ -1,0 +1,15 @@
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.DS_Store
+**/.env
+**/.venv
+node_modules
+frontend/node_modules
+dist
+.git
+.gitignore
+
+# Keep artifacts bind-mounted; don't COPY them into images
+backend/artifacts
