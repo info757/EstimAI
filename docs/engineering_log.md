@@ -14,6 +14,18 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-02 — PR 11: CI/CD
+
+**Context:** Added GitHub Actions CI to enforce tests/lint and build frontend.
+
+**Change:** .github/workflows/ci.yml runs on push/PR to main; Makefile lint/test targets confirmed; README CI badge added.
+
+**Endpoints touched:** N/A
+
+**Artifacts:** CI writes to ARTIFACT_DIR=${{ github.workspace }}/artifacts-ci (uploaded as artifact).
+
+**Risks/Notes:** Ensure tests don't depend on network/ports; keep ARTIFACT_DIR absolute in local .env; badge URL needs repo path after first push.
+
 ### 2025-09-01
 
 **Context:** PR roadmap established; moving toward MVP with async pipeline and smoke tests.

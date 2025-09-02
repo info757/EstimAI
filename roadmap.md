@@ -126,3 +126,119 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 - Generate Bid PDF works; all artifact links 200.  
 - Two backend tests pass (bid smoke + job lifecycle).  
 - Docs updated; startup prints mounted artifacts path.  
+
+
+---
+
+# EstimAI — PR 11 to 20 (Productionization + Dynamic Ingestion)
+
+## PR 11 — CI/CD Pipeline (GitHub Actions)
+**Goal**: Ensure every commit runs tests, lint, and build.  
+**Acceptance Criteria**
+- [ ] `.github/workflows/ci.yml` runs on push + PR to `main`.
+- [ ] Matrix: Python 3.11, Node 18.
+- [ ] Steps: checkout → install deps → lint → `make test` → frontend build.
+- [ ] CI uses temporary `ARTIFACT_DIR`.
+- [ ] Badge added to README.
+
+---
+
+## PR 12 — Dockerization
+**Goal**: Containerize backend + frontend.  
+**Acceptance Criteria**
+- [ ] `Dockerfile.backend` (uvicorn app).  
+- [ ] `Dockerfile.frontend` (Vite build → nginx).  
+- [ ] `docker-compose.yml` with backend + frontend + artifacts volume.  
+- [ ] `make docker-up` starts full stack.  
+
+---
+
+## PR 13 — Health & Monitoring
+**Goal**: Add basic health checks + structured logs.  
+**Acceptance Criteria**
+- [ ] `GET /health` → `{ status, uptime, version }`.  
+- [ ] Logs structured as JSON with job_id, pid, endpoint, duration.  
+- [ ] Startup log prints commit hash + ARTIFACT_DIR.  
+
+---
+
+## PR 14 — Persistence Upgrade (SQLite Job Store)
+**Goal**: Replace disk JSON job records with SQLite.  
+**Acceptance Criteria**
+- [ ] SQLite DB at `ARTIFACT_DIR/jobs.db`.  
+- [ ] Table: jobs (id, pid, status, created_at, updated_at, result_json, error_text).  
+- [ ] Job endpoints unchanged.  
+- [ ] Tests confirm job lifecycle in DB.  
+
+---
+
+## PR 15 — Auth Scaffolding
+**Goal**: Lay groundwork for multi-user auth.  
+**Acceptance Criteria**
+- [ ] `login` endpoint returns JWT token (demo user only).  
+- [ ] `get_current_user` dependency on protected endpoints.  
+- [ ] `.env.example` adds `JWT_SECRET`.  
+- [ ] Frontend: `/login` page, saves token in localStorage.  
+- [ ] API client attaches `Authorization: Bearer`.  
+
+---
+
+## PR 16 — Frontend Upload UI
+**Goal**: User can upload documents via UI.  
+**Acceptance Criteria**
+- [ ] Drag-drop uploader on `/projects/:pid`.  
+- [ ] Progress bar, multiple files, type validation (PDF, CSV, XLSX, DOCX).  
+- [ ] Calls `POST /ingest` and shows ingest results.  
+- [ ] Artifacts update automatically.  
+
+---
+
+## PR 17 — Ingestion Worker (Async)
+**Goal**: Make ingestion job-based.  
+**Acceptance Criteria**
+- [ ] `POST /pipeline_async` pattern applied to ingestion.  
+- [ ] Large files chunked/streamed.  
+- [ ] Status tracked in jobs table.  
+- [ ] Ingestion artifacts saved under `artifacts/{pid}/ingest/`.  
+
+---
+
+## PR 18 — Re-ingest & Manifest
+**Goal**: Track ingested files and prevent duplicates.  
+**Acceptance Criteria**
+- [ ] `ingest_manifest.json` per project with `{ filename, content_hash, indexed_at }`.  
+- [ ] Duplicate uploads skipped unless hash changes.  
+- [ ] New endpoint `GET /api/projects/{pid}/ingest` lists ingested sources.  
+
+---
+
+## PR 19 — Content Types & OCR
+**Goal**: Expand ingestion beyond PDFs.  
+**Acceptance Criteria**
+- [ ] Support parsing DOCX, XLSX, CSV.  
+- [ ] OCR images into text (if OCR lib available).  
+- [ ] Normalize outputs into a consistent doc model.  
+- [ ] Store parsed JSON next to raw file.  
+
+---
+
+## PR 20 — External Sources (Optional)
+**Goal**: Enable ingestion from external connectors.  
+**Acceptance Criteria**
+- [ ] Add support for S3 or cloud storage as ingestion source.  
+- [ ] Optional connectors for SharePoint/Drive (stubbed initially).  
+- [ ] “Sync now” endpoint + async job.  
+- [ ] Artifacts + manifest updated with external sources.  
+
+---
+
+# Definition of Done (PR 11–20)
+- CI pipeline green on every push.  
+- App runs via `docker-compose up`.  
+- `/health` works and logs structured.  
+- Jobs persist in SQLite.  
+- JWT auth prototype works in frontend.  
+- Users can upload and re-ingest documents dynamically.  
+- Manifest prevents duplicate indexing.  
+- Ingestion expanded to multiple file types.  
+- External connectors scaffolding in place (future).  

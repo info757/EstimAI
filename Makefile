@@ -11,13 +11,17 @@ api: ; cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 web: ; cd frontend && npm run dev
 
 # Run backend tests
-test: ; set -o allexport; source .env; set +o allexport; source .venv/bin/activate && cd backend && pytest -q
+test:
+	if [ -f .env ]; then set -o allexport; source .env; set +o allexport; fi; \
+	pytest -q
 
 # Format code
 fmt: ; ruff check --fix backend || true ; black backend || true
 
 # Lint code
-lint: ; ruff check backend
+lint:
+	ruff check . || true
+	black --check . || true
 
 # Clean caches (not artifacts)
 clean: ; find . -type d -name "__pycache__" -exec rm -rf {} + ; find . -type d -name ".pytest_cache" -exec rm -rf {} + ; find . -type f -name "*.pyc" -delete

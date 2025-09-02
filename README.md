@@ -1,5 +1,7 @@
 # EstimAI
 
+[![CI](https://github.com/<YOUR_ORG_OR_USER>/<YOUR_REPO>/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_ORG_OR_USER>/<YOUR_REPO>/actions/workflows/ci.yml)
+
 Multi-agent estimating application with async pipeline orchestration.
 
 ## Dev Quickstart

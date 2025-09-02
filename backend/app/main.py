@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from .api.routes import r
 from .core.config import get_settings
 from .core.paths import artifacts_root
+
 from .services.overrides import ensure_overrides_dir
 
 # Load environment variables
@@ -52,7 +53,7 @@ app.include_router(r, prefix="/api")
 @app.get("/health")
 async def health_check():
     """Simple health check endpoint."""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    return {"status": "ok"}
 
 
 @app.on_event("startup")

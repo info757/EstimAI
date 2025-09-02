@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    name: Lint, Test, and Build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        python-version: [ "3.11" ]
+        node-version: [ "18" ]
+
+    env:
+      # Minimal env so tests and path contracts work in CI
+      ARTIFACT_DIR: ${{ github.workspace }}/artifacts-ci
+      CORS_ORIGINS: http://localhost:5173
+      LOG_LEVEL: INFO
+      VITE_API_BASE: http://localhost:8000/api
+      VITE_FILE_BASE: http://localhost:8000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Ensure ARTIFACT_DIR exists
+        run: mkdir -p "$ARTIFACT_DIR"
+
+      - name: Lint/Format (ruff/black if present)
+        run: |
+          if command -v ruff >/dev/null 2>&1; then ruff check .; fi
+          if command -v ruff >/dev/null 2>&1; then ruff format --check . || true; fi
+          if command -v black >/dev/null 2>&1; then black --check . || true; fi
+
+      - name: Run backend tests
+        env:
+          ARTIFACT_DIR: ${{ env.ARTIFACT_DIR }}
+          CORS_ORIGINS: ${{ env.CORS_ORIGINS }}
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+          VITE_API_BASE: ${{ env.VITE_API_BASE }}
+          VITE_FILE_BASE: ${{ env.VITE_FILE_BASE }}
+        run: |
+          # Prefer Makefile if available; otherwise run pytest directly
+          if grep -qE '^test:' Makefile 2>/dev/null; then
+            make test
+          else
+            pytest -q
+          fi
+
+      - name: Frontend install & build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload test artifacts (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-ci
+          path: ${{ env.ARTIFACT_DIR }}
