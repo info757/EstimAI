@@ -166,22 +166,30 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 
 ---
 
-## PR 13 — Health & Monitoring
-**Goal**: Add basic health checks + structured logs.  
-**Acceptance Criteria**
-- [ ] `GET /health` → `{ status, uptime, version }`.  
-- [ ] Logs structured as JSON with job_id, pid, endpoint, duration.  
-- [ ] Startup log prints commit hash + ARTIFACT_DIR.  
+---
+
+### Acceptance checks (copy into PR 13 description)
+- [x ] `GET /health` returns `{ status: "ok", uptime_seconds, version }`.
+- [x ] Request logs emit **single-line JSON** with path/method/status/duration_ms.
+- [x ] Job transitions emit JSON logs with job_id, pid, from→to, success/error.
+- [x ] README documents health & logs.
+- [x ] (Optional) tests for `/health` pass locally & in CI.
+
+---
+
+
+
+
 
 ---
 
 ## PR 14 — Persistence Upgrade (SQLite Job Store)
 **Goal**: Replace disk JSON job records with SQLite.  
 **Acceptance Criteria**
-- [ ] SQLite DB at `ARTIFACT_DIR/jobs.db`.  
-- [ ] Table: jobs (id, pid, status, created_at, updated_at, result_json, error_text).  
-- [ ] Job endpoints unchanged.  
-- [ ] Tests confirm job lifecycle in DB.  
+- [x ] SQLite DB at `ARTIFACT_DIR/jobs.db`.  
+- [x ] Table: jobs (id, pid, status, created_at, updated_at, result_json, error_text).  
+- [x ] Job endpoints unchanged.  
+- [x ] Tests confirm job lifecycle in DB.  
 
 ---
 

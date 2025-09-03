@@ -14,6 +14,36 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-02 — PR 14: SQLite Job Store
+
+**Context:** Move job records from disk JSON to SQLite for robustness.
+
+**Change:** 
+- Added `backend/app/services/db.py` with SQLite database layer for job persistence
+- Jobs now persisted in `ARTIFACT_DIR/jobs.db` instead of individual JSON files
+- Updated `backend/app/services/jobs.py` to use database operations instead of file I/O
+- Modified `backend/app/api/routes_jobs.py` and `backend/app/api/routes_projects.py` to read from database
+- Added `backend/app/core/paths.py` with `jobs_db_path()` helper function
+- Created comprehensive test suite `backend/tests/test_jobs_sqlite.py` for database-backed job lifecycle
+- Added optional migration script `scripts/migrate_jobs_disk_to_sqlite.py` for legacy JSON job files
+- Updated README.md with migration instructions
+
+**Endpoints touched:** 
+- GET /api/jobs/{id} (no contract change)
+- POST /api/projects/{pid}/pipeline_async (no contract change)
+
+**Artifacts shape/paths:** 
+- Job records now stored in SQLite database at `ARTIFACT_DIR/jobs.db`
+- Database schema: `jobs` table with columns `id`, `pid`, `status`, `created_at`, `updated_at`, `result_json`, `error_text`
+- Legacy JSON job files can be migrated using the migration script
+
+**Risks/Notes:** 
+- Database uses WAL mode for improved concurrency and durability
+- All timestamps stored as ISO8601 UTC strings
+- Optional migration script for legacy JSON job files (safe to run multiple times)
+- Maintains 100% backward compatibility with existing API contracts
+- Smart field separation: file paths go to `artifacts`, complex data goes to `meta`
+
 ### 2025-09-03 — PR 13: Health Endpoint + Structured JSON Logging
 
 **Context:** Health endpoint and structured JSON logs for observability.

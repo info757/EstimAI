@@ -3,7 +3,7 @@ import uuid
 
 from ..core.executors import EXECUTOR
 from ..models.jobs import JobRecord, JobType
-from ..services.jobs import save_job
+from ..services.jobs import create_job
 from ..services.artifacts import collect_project_artifacts
 from ..services.orchestrator import run_full_pipeline
 from ..workers.run_pipeline import run_pipeline as run_pipeline_job
@@ -20,9 +20,8 @@ def pipeline_async(pid: str):
     
     Use GET /api/jobs/{job_id} to check the status of the background job.
     """
-    job_id = uuid.uuid4().hex
-    job = JobRecord(job_id=job_id, project_id=pid, job_type=JobType.pipeline)
-    save_job(job)
+    # Create job in database using the new create_job function
+    job_id = create_job(pid, "pipeline")
     # Submit background job (defined in backend/app/workers/run_pipeline.py)
     EXECUTOR.submit(run_pipeline_job, job_id, pid)
     return {"job_id": job_id}

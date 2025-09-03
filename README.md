@@ -193,3 +193,11 @@ make clean  # Clear caches
 
 **CORS errors**
 - Check `CORS_ORIGINS` in `.env` includes `http://localhost:5173`
+
+**Job Migration (PR 14+)**
+- If upgrading from a version before PR 14, run the migration script:
+  ```bash
+  python scripts/migrate_jobs_disk_to_sqlite.py
+  ```
+- This migrates legacy JSON job files to the new SQLite database
+- Safe to run multiple times - uses INSERT OR IGNORE to avoid duplicates

@@ -37,3 +37,9 @@ def ensure_dir(path: Path) -> Path:
     """Ensure a directory exists and return the path."""
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def jobs_db_path() -> Path:
+    """Get the path to the jobs SQLite database."""
+    db_path = artifacts_root() / "jobs.db"
+    return db_path
