@@ -1,5 +1,6 @@
 # backend/app/api/routes.py
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends  # ← add File
+from typing import List
 from ..services import orchestrator
 from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
 from app.services import orchestrator  # you already have this pattern
@@ -58,6 +59,43 @@ async def ingest(pid: str, file: UploadFile = File(...), current_user: dict = De
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ingest failed: {e}")
+
+
+@r.post("/projects/{pid}/ingest_async", tags=["projects"])
+async def ingest_async(pid: str, files: List[UploadFile] = File(...), current_user: dict = Depends(get_current_user)):
+    """
+    Upload multiple files asynchronously for project processing.
+    Returns a job ID that can be used to track progress.
+    """
+    from ..services.jobs import create_ingest_job
+    from ..services.ingest import ingest_files
+    
+    try:
+        # Create ingest job
+        job_id = create_ingest_job(pid)
+        
+        # Enqueue the ingest job (for now, run it synchronously)
+        # In a real implementation, this would be queued to a background worker
+        from ..services.jobs import run_ingest_job
+        
+        # Run the job synchronously for now
+        result = run_ingest_job(job_id, pid, files, ingest_files)
+        
+        return {"job_id": job_id, "summary": result}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ingest failed: {e}")
+
+
+@r.get("/projects/{pid}/ingest", tags=["projects"])
+async def list_ingest(pid: str, current_user: dict = Depends(get_current_user)):
+    """
+    List ingested files for a project.
+    Returns a list of ingested files with metadata.
+    """
+    # For PR 17, return empty list as noted in requirements
+    # This will be implemented in PR 18
+    return {"files": []}
 
 @r.post("/projects/{pid}/agents/takeoff", response_model=TakeoffOutput, tags=["agents"])
 async def run_takeoff(pid: str, current_user: dict = Depends(get_current_user)):

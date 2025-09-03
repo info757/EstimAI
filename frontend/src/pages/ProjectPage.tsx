@@ -3,22 +3,22 @@ import { useParams } from 'react-router-dom'
 import { 
   pipelineAsync, 
   getJob, 
-  listArtifacts, 
   generateBid, 
   fileUrl 
 } from '../api/client'
 import { UploadPanel } from '../components/UploadPanel'
-import type { JobResponse, ArtifactsResponse } from '../types/api'
-import Toast, { type ToastType } from '../components/Toast'
+import type { JobResponse } from '../types/api'
+import Toast from '../components/Toast'
+import { useArtifacts } from '../hooks/useArtifacts'
 
 interface ToastState {
-  type: ToastType;
+  type: 'success' | 'error' | 'info';
   message: string;
 }
 
 export default function ProjectPage() {
   const { pid = '' } = useParams()
-  const [artifacts, setArtifacts] = useState<ArtifactsResponse | null>(null)
+  const { items: artifacts, loading: artifactsLoading, refresh: refreshArtifacts } = useArtifacts(pid)
   const [isGeneratingBid, setIsGeneratingBid] = useState(false)
   const [isRunningPipeline, setIsRunningPipeline] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -26,23 +26,7 @@ export default function ProjectPage() {
   const [toast, setToast] = useState<ToastState | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Load existing artifacts on page load
-  useEffect(() => {
-    fetchArtifacts()
-  }, [pid])
-
-  const fetchArtifacts = useCallback(async () => {
-    try {
-      const data = await listArtifacts(pid)
-      setArtifacts(data)
-      setError(null)
-    } catch (err) {
-      console.error('Failed to fetch artifacts:', err)
-      setError('Failed to load artifacts')
-    }
-  }, [pid])
-
-  const showToast = useCallback((type: ToastType, message: string) => {
+  const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     setToast({ type, message })
   }, [])
 
@@ -71,7 +55,7 @@ export default function ProjectPage() {
           showToast('success', message)
           
           // Refresh artifacts list
-          await fetchArtifacts()
+          await refreshArtifacts()
           
         } else if (job.status === 'failed') {
           setIsRunningPipeline(false)
@@ -189,23 +173,28 @@ export default function ProjectPage() {
       {/* Upload Section */}
       <UploadPanel 
         pid={pid} 
-        onComplete={fetchArtifacts}
+        onComplete={refreshArtifacts}
         onUploadStateChange={setIsUploading}
       />
 
       <div className="grid gap-3">
         <div className="text-lg font-semibold">Artifacts</div>
-        {!artifacts && !error && (
+        {artifactsLoading && (
+          <div className="opacity-70">
+            Loading artifacts...
+          </div>
+        )}
+        {!artifactsLoading && artifacts.length === 0 && (
           <div className="opacity-70">
             No artifacts yet. Click "Generate Bid PDF" or "Run Full Pipeline".
           </div>
         )}
-        {artifacts && Object.entries(artifacts.artifacts).map(([key, path]) => (
-          <div key={key} className="flex items-center justify-between rounded-2xl p-4 shadow bg-white">
-            <div className="font-medium">{key}</div>
+        {artifacts.map((artifact) => (
+          <div key={artifact.path} className="flex items-center justify-between rounded-2xl p-4 shadow bg-white">
+            <div className="font-medium">{artifact.type || 'File'}</div>
             <a 
               className="underline hover:text-blue-600 transition-colors" 
-              href={fileUrl(path)} 
+              href={fileUrl(artifact.path)} 
               target="_blank" 
               rel="noreferrer"
             >
@@ -218,9 +207,9 @@ export default function ProjectPage() {
       {/* Toast notifications */}
       {toast && (
         <Toast
-          type={toast.type}
           message={toast.message}
-          onClose={hideToast}
+          options={{ type: toast.type }}
+          onDismiss={hideToast}
         />
       )}
     </div>

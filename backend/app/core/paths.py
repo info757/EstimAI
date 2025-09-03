@@ -43,3 +43,24 @@ def jobs_db_path() -> Path:
     """Get the path to the jobs SQLite database."""
     db_path = artifacts_root() / "jobs.db"
     return db_path
+
+
+def project_ingest_dir(pid: str) -> Path:
+    """Get the ingest directory for a given project."""
+    ingest_path = project_dir(pid) / "ingest"
+    ingest_path.mkdir(parents=True, exist_ok=True)
+    return ingest_path
+
+
+def project_ingest_raw_dir(pid: str) -> Path:
+    """Get the raw files directory for ingest."""
+    raw_path = project_ingest_dir(pid) / "raw"
+    raw_path.mkdir(parents=True, exist_ok=True)
+    return raw_path
+
+
+def project_ingest_parsed_dir(pid: str) -> Path:
+    """Get the parsed files directory for ingest."""
+    parsed_path = project_ingest_dir(pid) / "parsed"
+    parsed_path.mkdir(parents=True, exist_ok=True)
+    return parsed_path

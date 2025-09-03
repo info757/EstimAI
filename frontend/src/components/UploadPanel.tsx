@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { ingestFiles } from '../api/client';
+import { ingestAsync, getJob } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
 interface UploadPanelProps {
@@ -70,39 +70,65 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ pid, onComplete, onUpl
     setIsUploading(true);
     
     try {
-      // Simulate progress for each file
       const files = selectedFiles.map(f => f.file);
       
       // Update status to uploading
       setSelectedFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
       
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setSelectedFiles(prev => prev.map(f => 
-          f.status === 'uploading' 
-            ? { ...f, progress: Math.min(f.progress + Math.random() * 20, 90) }
-            : f
-        ));
-      }, 200);
-
-      // Call the API
-      const result = await ingestFiles(pid, files);
+      // Call the async ingest API to get job ID
+      const { job_id } = await ingestAsync(pid, files);
       
-      clearInterval(progressInterval);
+      // Start polling the job status
+      const pollInterval = setInterval(async () => {
+        try {
+          const job = await getJob(job_id);
+          
+          if (job.status === 'complete') {
+            clearInterval(pollInterval);
+            
+            // Mark all files as completed
+            setSelectedFiles(prev => prev.map(f => ({ ...f, progress: 100, status: 'completed' as const })));
+            
+            // Show success message
+            toast(`Ingest complete: ${files.length} files processed`, { 
+              type: 'success',
+              link: `/projects/${pid}`,
+              label: 'View artifacts'
+            });
+            
+            // Clear selection and refresh artifacts
+            clearSelection();
+            onComplete?.();
+            setIsUploading(false);
+            
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval);
+            
+            // Mark all files as error
+            setSelectedFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
+            
+            // Show error message
+            const errorMessage = job.error || 'Ingest job failed';
+            toast(`Ingest failed: ${errorMessage}`, { type: 'error' });
+            
+            setIsUploading(false);
+          }
+          // Continue polling if status is 'queued' or 'running'
+          
+        } catch (error) {
+          console.error('Job polling failed:', error);
+          clearInterval(pollInterval);
+          
+          // Mark all files as error
+          setSelectedFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
+          
+          toast(`Job polling failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { type: 'error' });
+          setIsUploading(false);
+        }
+      }, 1500); // Poll every 1500ms
       
-      // Mark all files as completed
-      setSelectedFiles(prev => prev.map(f => ({ ...f, progress: 100, status: 'completed' as const })));
-      
-      // Show success message with link to artifacts
-      toast(`Successfully ingested ${result.files_count} files`, { 
-        type: 'success',
-        link: `/projects/${pid}`,
-        label: 'View artifacts'
-      });
-      
-      // Clear selection and refresh immediately
-      clearSelection();
-      onComplete?.();
+      // Update status to show "Ingesting..." while polling
+      setSelectedFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
       
     } catch (error) {
       console.error('Upload failed:', error);
@@ -116,7 +142,6 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ pid, onComplete, onUpl
       const statusCode = statusMatch ? statusMatch[1] : 'unknown';
       
       toast(`Upload failed (${statusCode}): ${errorMessage}`, { type: 'error' });
-    } finally {
       setIsUploading(false);
     }
   }, [selectedFiles, isUploading, pid, toast, onComplete, clearSelection]);
@@ -250,7 +275,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ pid, onComplete, onUpl
             disabled={isUploading}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`}
+            {isUploading ? 'Ingesting...' : `Upload ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`}
           </button>
           
           <button

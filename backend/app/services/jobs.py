@@ -237,3 +237,55 @@ def list_jobs(project_id: str | None = None) -> List[JobRecord]:
             continue
     
     return out
+
+
+def create_ingest_job(project_id: str) -> str:
+    """
+    Create a new ingest job record in the database.
+    
+    Args:
+        project_id: Project identifier
+        
+    Returns:
+        str: Generated job ID
+    """
+    return create_job(project_id, job_type='ingest')
+
+
+def run_ingest_job(job_id: str, pid: str, files, ingest_func) -> Dict[str, Any]:
+    """
+    Run an ingest job with the provided files and ingest function.
+    
+    Args:
+        job_id: Job ID
+        pid: Project ID
+        files: List of uploaded files
+        ingest_func: Function to call for ingestion
+        
+    Returns:
+        Dict: Job result with summary
+    """
+    try:
+        # Update job status to running
+        update_job(job_id, status=JobStatus.running)
+        
+        # Run the ingest function
+        result = ingest_func(pid, files, job_id)
+        
+        # Update job status to complete with result
+        update_job(job_id, status=JobStatus.complete, meta=result)
+        
+        return result
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Ingest job failed", extra={
+            'job_id': job_id,
+            'project_id': pid,
+            'error': error_msg
+        })
+        
+        # Update job status to failed with error
+        update_job(job_id, status=JobStatus.failed, error=error_msg)
+        
+        raise

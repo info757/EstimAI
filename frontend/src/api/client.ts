@@ -162,3 +162,10 @@ export async function ingestFiles(pid: string, files: File[]): Promise<IngestRes
   if (!res.ok) throw new Error(`ingest failed: ${res.status}`);
   return res.json(); // { ok, files_count, index_ids? }
 }
+
+// Async ingest API Methods for PR 17
+export async function ingestAsync(pid: string, files: File[]): Promise<{ job_id: string }> {
+  const form = new FormData();
+  files.forEach(f => form.append("files", f));
+  return await post<{ job_id: string }>(`/projects/${encodeURIComponent(pid)}/ingest_async`, form);
+}
