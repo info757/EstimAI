@@ -7,7 +7,8 @@ import type {
   ReviewResponse,
   Patch,
   PatchResponse,
-  PipelineSyncResponse
+  PipelineSyncResponse,
+  IngestResponse
 } from '../types/api';
 import type { LoginRequest, LoginResponse } from '../types/auth';
 import { getToken } from '../state/auth';
@@ -146,4 +147,18 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
   }
   
   return response;
+}
+
+// File upload API Methods for PR 16
+
+export async function ingestFiles(pid: string, files: File[]): Promise<IngestResponse> {
+  const form = new FormData();
+  files.forEach(f => form.append("files", f));
+  const res = await fetch(`${API_BASE}/projects/${pid}/ingest`, {
+    method: "POST",
+    headers: { ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`ingest failed: ${res.status}`);
+  return res.json(); // { ok, files_count, index_ids? }
 }

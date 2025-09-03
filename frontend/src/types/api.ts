@@ -80,3 +80,10 @@ export type PipelineSyncResponse = {
   summary: any;
   pdf_path: string;
 };
+
+// Ingest types for PR 16
+export interface IngestResponse {
+  ok: boolean;
+  files_count: number;
+  index_ids?: string[];
+}

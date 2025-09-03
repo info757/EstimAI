@@ -7,6 +7,7 @@ import {
   generateBid, 
   fileUrl 
 } from '../api/client'
+import { UploadPanel } from '../components/UploadPanel'
 import type { JobResponse, ArtifactsResponse } from '../types/api'
 import Toast, { type ToastType } from '../components/Toast'
 
@@ -20,6 +21,7 @@ export default function ProjectPage() {
   const [artifacts, setArtifacts] = useState<ArtifactsResponse | null>(null)
   const [isGeneratingBid, setIsGeneratingBid] = useState(false)
   const [isRunningPipeline, setIsRunningPipeline] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -135,7 +137,7 @@ export default function ProjectPage() {
     }
   }
 
-  const isAnyActionRunning = isGeneratingBid || isRunningPipeline
+  const isAnyActionRunning = isGeneratingBid || isRunningPipeline || isUploading
 
   return (
     <div className="grid gap-6">
@@ -147,14 +149,14 @@ export default function ProjectPage() {
             disabled={isAnyActionRunning}
             className="rounded-2xl px-4 py-2 bg-gray-900 text-white disabled:opacity-60 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
           >
-            {isGeneratingBid ? 'Generating…' : 'Generate Bid PDF'}
+            {isGeneratingBid ? 'Generating…' : isUploading ? 'Upload in Progress…' : 'Generate Bid PDF'}
           </button>
           <button
             onClick={onRunFullPipeline}
             disabled={isAnyActionRunning}
             className="rounded-2xl px-4 py-2 bg-blue-600 text-white disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
           >
-            {isRunningPipeline ? 'Running Pipeline…' : 'Run Full Pipeline'}
+            {isRunningPipeline ? 'Running Pipeline…' : isUploading ? 'Upload in Progress…' : 'Run Full Pipeline'}
           </button>
         </div>
       </div>
@@ -183,6 +185,13 @@ export default function ProjectPage() {
           {error}
         </div>
       )}
+
+      {/* Upload Section */}
+      <UploadPanel 
+        pid={pid} 
+        onComplete={fetchArtifacts}
+        onUploadStateChange={setIsUploading}
+      />
 
       <div className="grid gap-3">
         <div className="text-lg font-semibold">Artifacts</div>
