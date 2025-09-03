@@ -14,6 +14,41 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-03 — PR 15: Auth Scaffolding
+
+**Context:** Implement backend authentication helpers for JWT-based user authentication.
+
+**Change:** 
+- Added `backend/app/core/auth.py` with JWT token creation, decoding, and user authentication utilities
+- Enhanced `backend/app/core/config.py` with JWT settings (JWT_SECRET, JWT_ALG, ACCESS_TOKEN_EXPIRE_MINUTES)
+- Created `backend/requirements.txt` with PyJWT and other authentication dependencies
+- Implemented comprehensive authentication functions: create_access_token, decode_token, get_current_user, authenticate_user
+- Added OAuth2 Bearer token scheme with HTTPBearer dependency
+- Included demo users for development/testing with configurable scopes
+- Created comprehensive test suite `backend/tests/test_auth.py` for all authentication functions
+- Added `backend/app/api/routes_auth.py` with POST /api/auth/login endpoint
+- Protected all project endpoints with authentication: ingest, pipeline_async, pipeline_sync, agents/*, bid, artifacts, review/*
+- Protected job endpoints with authentication: GET /api/jobs/{id}, GET /api/jobs
+- Health endpoint remains public for monitoring
+- Created comprehensive test suite `backend/tests/test_auth_routes.py` for authentication routes
+
+**Endpoints touched:** 
+- POST /api/auth/login (new)
+- All /api/projects/{pid}/* endpoints (now require authentication)
+- All /api/jobs/* endpoints (now require authentication)
+- GET /health (remains public)
+
+**Artifacts shape/paths:** N/A
+
+**Risks/Notes:** 
+- JWT_SECRET defaults to "dev-secret" in development (must be set in production)
+- Uses PyJWT for lightweight JWT handling
+- Demo users included for development/testing purposes
+- All timestamps use UTC timezone for consistency
+- Comprehensive error handling with proper HTTP status codes
+- FastAPI returns 403 Forbidden for missing authentication (correct behavior)
+- OpenAPI documentation automatically shows security requirements for protected endpoints
+
 ### 2025-09-02 — PR 14: SQLite Job Store
 
 **Context:** Move job records from disk JSON to SQLite for robustness.

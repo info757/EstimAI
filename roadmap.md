@@ -193,14 +193,6 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 
 ---
 
-## PR 15 — Auth Scaffolding
-**Goal**: Lay groundwork for multi-user auth.  
-**Acceptance Criteria**
-- [ ] `login` endpoint returns JWT token (demo user only).  
-- [ ] `get_current_user` dependency on protected endpoints.  
-- [ ] `.env.example` adds `JWT_SECRET`.  
-- [ ] Frontend: `/login` page, saves token in localStorage.  
-- [ ] API client attaches `Authorization: Bearer`.  
 
 ---
 

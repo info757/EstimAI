@@ -8,6 +8,8 @@ import UploadPage from './pages/UploadPage'
 import ProjectPage from './pages/ProjectPage'
 import ReviewTakeoffPage from './pages/ReviewTakeoffPage'
 import ReviewEstimatePage from './pages/ReviewEstimatePage'
+import LoginPage from './pages/LoginPage'
+import PrivateRoute from './components/PrivateRoute'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -16,10 +18,27 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <Routes>
           <Route path="/" element={<RootLayout />}>
             <Route index element={<DashboardPage />} />
-            <Route path="upload" element={<UploadPage />} />
-            <Route path="projects/:pid" element={<ProjectPage />} />
-            <Route path="projects/:pid/review/takeoff" element={<ReviewTakeoffPage />} />
-            <Route path="projects/:pid/review/estimate" element={<ReviewEstimatePage />} />
+            <Route path="upload" element={
+              <PrivateRoute>
+                <UploadPage />
+              </PrivateRoute>
+            } />
+            <Route path="login" element={<LoginPage />} />
+            <Route path="projects/:pid" element={
+              <PrivateRoute>
+                <ProjectPage />
+              </PrivateRoute>
+            } />
+            <Route path="projects/:pid/review/takeoff" element={
+              <PrivateRoute>
+                <ReviewTakeoffPage />
+              </PrivateRoute>
+            } />
+            <Route path="projects/:pid/review/estimate" element={
+              <PrivateRoute>
+                <ReviewEstimatePage />
+              </PrivateRoute>
+            } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

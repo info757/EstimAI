@@ -5,7 +5,7 @@ Review endpoints for HITL overrides.
 import logging
 from typing import List, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Depends
 from fastapi.responses import JSONResponse
 
 from ..models.review import (
@@ -13,6 +13,7 @@ from ..models.review import (
 )
 from ..services.overrides import load_overrides, save_overrides, apply_overrides
 from ..services.pipeline import latest_stage_rows
+from ..core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ router = APIRouter()
 
 @router.get("/projects/{pid}/review/takeoff", response_model=ReviewResponse)
 async def get_takeoff_review(
-    pid: str = Path(..., description="Project ID")
+    pid: str = Path(..., description="Project ID"),
+    current_user: dict = Depends(get_current_user)
 ) -> ReviewResponse:
     """
     Get takeoff data for review with AI, override, and merged fields.
@@ -88,7 +90,8 @@ async def get_takeoff_review(
 @router.patch("/projects/{pid}/review/takeoff", response_model=PatchResponse)
 async def patch_takeoff_review(
     request: PatchRequest,
-    pid: str = Path(..., description="Project ID")
+    pid: str = Path(..., description="Project ID"),
+    current_user: dict = Depends(get_current_user)
 ) -> PatchResponse:
     """
     Apply patches to takeoff data.
@@ -145,7 +148,8 @@ async def patch_takeoff_review(
 
 @router.get("/projects/{pid}/review/estimate", response_model=ReviewResponse)
 async def get_estimate_review(
-    pid: str = Path(..., description="Project ID")
+    pid: str = Path(..., description="Project ID"),
+    current_user: dict = Depends(get_current_user)
 ) -> ReviewResponse:
     """
     Get estimate data for review with AI, override, and merged fields.
@@ -212,7 +216,8 @@ async def get_estimate_review(
 @router.patch("/projects/{pid}/review/estimate", response_model=PatchResponse)
 async def patch_estimate_review(
     request: PatchRequest,
-    pid: str = Path(..., description="Project ID")
+    pid: str = Path(..., description="Project ID"),
+    current_user: dict = Depends(get_current_user)
 ) -> PatchResponse:
     """
     Apply patches to estimate data.

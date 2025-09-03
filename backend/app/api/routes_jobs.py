@@ -1,17 +1,18 @@
 # backend/app/api/routes_jobs.py
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 from ..services.db import get_job as db_get_job, list_jobs as db_list_jobs
 from ..models.jobs import JobRecord, JobStatus, JobType
+from ..core.auth import get_current_user
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
 @router.get("/{job_id}")
-def get_job(job_id: str):
+def get_job(job_id: str, current_user: dict = Depends(get_current_user)):
     """
     Get details of a single job by ID.
     
@@ -48,7 +49,7 @@ def get_job(job_id: str):
 
 
 @router.get("")
-def get_jobs(project_id: str | None = Query(None)):
+def get_jobs(project_id: str | None = Query(None), current_user: dict = Depends(get_current_user)):
     """
     List jobs, optionally filtered by project_id.
     

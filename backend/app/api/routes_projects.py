@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 import uuid
 
 from ..core.executors import EXECUTOR
@@ -7,13 +7,14 @@ from ..services.jobs import create_job
 from ..services.artifacts import collect_project_artifacts
 from ..services.orchestrator import run_full_pipeline
 from ..workers.run_pipeline import run_pipeline as run_pipeline_job
+from ..core.auth import get_current_user
 
 # All routes here will be /api/projects/...
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.post("/{pid}/pipeline_async")
-def pipeline_async(pid: str):
+def pipeline_async(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Kick off the full pipeline (takeoff → scope → leveler → risk → estimate → bid)
     as a background job. Returns {job_id} immediately.
@@ -28,7 +29,7 @@ def pipeline_async(pid: str):
 
 
 @router.post("/{pid}/pipeline_sync")
-async def pipeline_sync(pid: str):
+async def pipeline_sync(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Synchronously run the full pipeline: takeoff → scope → leveler → risk → estimate → bid.
     Returns a compact JSON response with summary and browser-openable pdf_path.
@@ -41,7 +42,7 @@ async def pipeline_sync(pid: str):
 
 
 @router.get("/{pid}/artifacts")
-def get_project_artifacts(pid: str):
+def get_project_artifacts(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Return all artifacts (JSON + bid PDFs) for a project.
     The values are relative static paths like 'artifacts/<pid>/bid/<file>.pdf'

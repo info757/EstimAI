@@ -17,6 +17,7 @@ git clone <YOUR_REPO_URL>
 cd estimai
 cp .env.example .env
 # Edit .env and set an ABSOLUTE ARTIFACT_DIR path
+# For authentication (PR 15+), set JWT_SECRET to a secure value
 
 # Create virtual environment
 python3.11 -m venv .venv
@@ -156,6 +157,11 @@ backend/artifacts/
 **Required:**
 - `ARTIFACT_DIR`: Absolute path to artifacts directory
 
+**Authentication (PR 15+):**
+- `JWT_SECRET`: Secret key for JWT token signing (required in production)
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: JWT token expiration time (default: 60)
+- `JWT_ALG`: JWT signing algorithm (default: HS256)
+
 **Optional:**
 - `CORS_ORIGINS`: Comma-separated allowed origins
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -163,11 +169,17 @@ backend/artifacts/
 - `VITE_FILE_BASE`: File serving URL (default: http://localhost:8000)
 
 ### API Endpoints
+**Authentication Required (PR 15+):**
+- `POST /api/auth/login` - Authenticate and get JWT token
 - `POST /api/projects/{pid}/ingest` - Upload documents
 - `POST /api/projects/{pid}/pipeline_async` - Start async pipeline
 - `GET /api/jobs/{job_id}` - Check job status
 - `POST /api/projects/{pid}/bid` - Generate bid PDF
 - `GET /api/projects/{pid}/artifacts` - List artifacts
+
+**Public Endpoints:**
+- `GET /health` - Health check and version info
+- `GET /docs` - OpenAPI documentation
 
 ### Development Commands
 ```bash
@@ -178,6 +190,27 @@ make fmt    # Format code
 make lint   # Lint code
 make clean  # Clear caches
 ```
+
+## Auth (demo scaffold)
+
+**Authentication Flow:**
+- **Login**: `POST /api/auth/login` with:
+  ```json
+  {
+    "username": "demo@example.com",
+    "password": "demo123"
+  }
+  ```
+- **Response**: `{ "token": "<jwt>", "token_type": "bearer", "user": {...} }`
+- **Storage**: Frontend stores token in localStorage and automatically attaches `Authorization: Bearer <token>` to all API calls
+- **Protection**: All `/api/projects/*` endpoints require a valid token
+- **Frontend**: Login page at `/login`, protected routes redirect to login if unauthenticated
+
+**Demo Credentials:**
+- Username: `demo@example.com`
+- Password: `demo123`
+
+**⚠️ NOTE:** This is demo-only scaffolding; replace with real user store and authentication system in production.
 
 ## Troubleshooting
 
@@ -201,3 +234,10 @@ make clean  # Clear caches
   ```
 - This migrates legacy JSON job files to the new SQLite database
 - Safe to run multiple times - uses INSERT OR IGNORE to avoid duplicates
+
+**Authentication Issues (PR 15+)**
+- Ensure `JWT_SECRET` is set in environment variables
+- Check that token is being sent in Authorization header
+- Verify token hasn't expired (default: 60 minutes)
+- Use demo credentials for testing: `demo@example.com` / `demo123`
+- If getting 401/403 errors, try logging in again to get a fresh token

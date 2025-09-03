@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     OVERHEAD_PCT: float = 10.0
     PROFIT_PCT: float = 5.0
     
+    # JWT Authentication settings
+    JWT_SECRET: str = "dev-secret"  # Required in production, fallback for dev
+    JWT_ALG: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    
     @validator('ARTIFACT_DIR')
     def validate_artifact_dir(cls, v):
         """Ensure ARTIFACT_DIR is an absolute path and create if it doesn't exist."""

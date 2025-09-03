@@ -9,6 +9,8 @@ import type {
   PatchResponse,
   PipelineSyncResponse
 } from '../types/api';
+import type { LoginRequest, LoginResponse } from '../types/auth';
+import { getToken } from '../state/auth';
 
 export const API_BASE = 
   (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api';
@@ -22,16 +24,27 @@ export async function api<T>(
   path: string,
   options: RequestInit & { method?: HttpMethod } = {}
 ): Promise<T> {
+  // Get authentication token
+  const token = getToken();
+  
   const res = await fetch(`${API_BASE}${path}`, {
     method: options.method ?? 'GET',
     ...options,
     headers: {
       Accept: 'application/json',
       ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      // Add Authorization header if token exists
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   });
   if (!res.ok) {
+    // Handle 401 Unauthorized - clear token and throw error
+    if (res.status === 401) {
+      import('../state/auth').then(({ clearToken }) => clearToken());
+      throw new Error('Authentication required. Please log in again.');
+    }
+    
     const text = await res.text().catch(() => '');
     throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`);
   }
@@ -117,4 +130,20 @@ export async function patchEstimateReview(pid: string, patches: Patch[]): Promis
 // Pipeline sync method
 export async function pipelineSync(pid: string): Promise<PipelineSyncResponse> {
   return await post<PipelineSyncResponse>(`/projects/${encodeURIComponent(pid)}/pipeline_sync`);
+}
+
+// Authentication API Methods for PR 15
+
+export async function login(request: LoginRequest): Promise<LoginResponse> {
+  const response = await post<LoginResponse>('/auth/login', request);
+  
+  // Store token and user data on successful login
+  if (response.token) {
+    import('../state/auth').then(({ setToken, setUser }) => {
+      setToken(response.token);
+      setUser(response.user);
+    });
+  }
+  
+  return response;
 }

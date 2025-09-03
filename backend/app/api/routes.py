@@ -1,23 +1,26 @@
 # backend/app/api/routes.py
-from fastapi import APIRouter, UploadFile, File, HTTPException  # ← add File
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends  # ← add File
 from ..services import orchestrator
 from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
 from app.services import orchestrator  # you already have this pattern
 from app.models.schemas import EstimateOutput  # add if not present
 from app.services.bid import build_bid_pdf
+from ..core.auth import get_current_user
 from pathlib import Path
 from .routes_projects import router as projects_router
 from .routes_jobs import router as jobs_router
 from .routes_review import router as review_router
+from .routes_auth import router as auth_router
 import os
 
 r = APIRouter()
+r.include_router(auth_router)
 r.include_router(projects_router)
 r.include_router(jobs_router)
 r.include_router(review_router)
 
 @r.post("/projects/{pid}/ingest", tags=["projects"])
-async def ingest(pid: str, file: UploadFile = File(...)):
+async def ingest(pid: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     """
     Upload a file (PDF, etc.) for project processing.
     Returns browser-openable paths for uploaded files and generated indexes.
@@ -57,7 +60,7 @@ async def ingest(pid: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Ingest failed: {e}")
 
 @r.post("/projects/{pid}/agents/takeoff", response_model=TakeoffOutput, tags=["agents"])
-async def run_takeoff(pid: str):
+async def run_takeoff(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Run takeoff analysis on project documents.
     Returns structured takeoff data with measurements and confidence scores.
@@ -65,7 +68,7 @@ async def run_takeoff(pid: str):
     return await orchestrator.run_takeoff(pid)
 
 @r.post("/projects/{pid}/agents/scope", response_model=ScopeOutput, tags=["agents"])
-async def run_scope(pid: str):
+async def run_scope(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Run scope analysis on project specifications.
     Returns structured scope of work items.
@@ -73,7 +76,7 @@ async def run_scope(pid: str):
     return await orchestrator.run_scope(pid)
 
 @r.post("/projects/{pid}/agents/level", response_model=list[LevelingResult], tags=["agents"])
-async def run_leveler(pid: str):
+async def run_leveler(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Run leveling analysis on takeoff data.
     Returns leveled takeoff items with standardized descriptions.
@@ -81,7 +84,7 @@ async def run_leveler(pid: str):
     return await orchestrator.run_leveler(pid)
 
 @r.post("/projects/{pid}/agents/risk", response_model=RiskOutput, tags=["agents"])
-async def run_risk(pid: str):
+async def run_risk(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Run risk analysis on project data.
     Returns identified risks and mitigation strategies.
@@ -89,7 +92,7 @@ async def run_risk(pid: str):
     return await orchestrator.run_risk(pid)
 
 @r.post("/projects/{pid}/agents/estimate", response_model=EstimateOutput, tags=["agents"])
-async def run_estimate(pid: str):
+async def run_estimate(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Generate cost estimate from takeoff and leveling data.
     Returns detailed estimate with line items and totals.
@@ -99,7 +102,7 @@ async def run_estimate(pid: str):
 
 @r.post("/projects/{pid}/bid", tags=["projects"])
 @r.get("/projects/{pid}/bid", tags=["projects"])
-async def create_bid(pid: str):
+async def create_bid(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Generate a bid PDF from project data.
     Returns browser-openable path to the generated PDF.

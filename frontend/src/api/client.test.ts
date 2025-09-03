@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { fileUrl, pipelineAsync, getJob, listArtifacts, generateBid } from './client';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { fileUrl, pipelineAsync, getJob, listArtifacts, generateBid, login } from './client';
 
 describe('fileUrl', () => {
   it('constructs proper file URLs', () => {
@@ -50,6 +50,18 @@ describe('API Integration', () => {
     expect(response).toHaveProperty('project_id', 'demo');
     expect(response).toHaveProperty('pdf_path');
     expect(response.pdf_path).toMatch(/^artifacts\/demo\/bid\/.*\.pdf$/);
+  }, 10000);
+
+  it('can authenticate with login', async () => {
+    const response = await login({
+      username: 'demo@example.com',
+      password: 'demo123'
+    });
+    expect(response).toHaveProperty('token');
+    expect(response).toHaveProperty('token_type', 'bearer');
+    expect(response).toHaveProperty('user');
+    expect(response.user).toHaveProperty('email', 'demo@example.com');
+    expect(response.user).toHaveProperty('name');
   }, 10000);
 });
 
