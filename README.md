@@ -51,6 +51,90 @@ docker compose logs -f
 docker compose down
 ```
 
+## Health & Logs
+
+### Health Check
+Monitor application health and version information:
+
+```bash
+# Basic health check
+curl -s http://localhost:8000/health | jq
+
+# Expected response:
+{
+  "status": "ok",
+  "uptime_seconds": 123.456,
+  "version": "f47c4f4"
+}
+```
+
+### Structured Logging
+The application uses structured JSON logging for production monitoring:
+
+**Log Format:**
+```json
+{
+  "ts": "2025-09-03T14:16:11.618983Z",
+  "level": "INFO",
+  "msg": "🚀 EstimAI backend starting up...",
+  "logger": "app.main",
+  "pid": 69804,
+  "path": "/health",
+  "method": "GET",
+  "status": 200,
+  "duration_ms": 2.43,
+  "project_id": "P1",
+  "job_id": "J1"
+}
+```
+
+**Key Log Fields:**
+- `ts`: ISO UTC timestamp
+- `level`: Log level (INFO, ERROR, etc.)
+- `msg`: Human-readable message
+- `logger`: Logger name
+- `pid`: Process ID
+- `path`: HTTP request path
+- `method`: HTTP method
+- `status`: HTTP status code
+- `duration_ms`: Request duration in milliseconds
+- `project_id`: Project identifier (when available)
+- `job_id`: Job identifier (when available)
+- `log_type`: Type of log entry (e.g., "job_transition", "pipeline_completion")
+
+**Job Pipeline Logging:**
+```json
+{
+  "ts": "2025-09-03T14:16:30.789Z",
+  "level": "INFO",
+  "msg": "Full pipeline completed successfully",
+  "logger": "app.services.orchestrator",
+  "pid": 69804,
+  "project_id": "P1",
+  "path": "/pipeline",
+  "method": "POST",
+  "status": 200,
+  "duration_ms": 10450.23,
+  "log_type": "pipeline_completion",
+  "result": {
+    "steps_completed": 5,
+    "errors_count": 0
+  }
+}
+```
+
+**Version Tracking:**
+The application automatically tracks the git commit SHA:
+- Set `COMMIT_SHA` environment variable for custom versioning
+- Docker builds automatically include current git commit SHA
+- Falls back to "dev" if no version information available
+
+**Log Aggregation:**
+- Single-line JSON format for production log systems
+- Compatible with ELK stack, Splunk, Datadog, etc.
+- Request context preserved across async operations
+```
+
 ## Path Contracts
 
 ### Artifact Directory Structure

@@ -10,6 +10,7 @@ services:
       ARTIFACT_DIR: /app/backend/artifacts
       LOG_LEVEL: INFO
       CORS_ORIGINS: http://localhost:8080
+      COMMIT_SHA: ${COMMIT_SHA:-dev}
     ports:
       - "8000:8000"
     volumes:

@@ -32,13 +32,18 @@ db-down: ; docker compose down
 
 # Docker commands for PR 12
 docker-build-backend:
-	docker build -f Dockerfile.backend -t estimai-backend:latest .
+	docker build -f Dockerfile.backend \
+		--build-arg COMMIT_SHA=$${COMMIT_SHA:-dev} \
+		-t estimai-backend:latest .
 
 docker-build-frontend:
-	docker build -f Dockerfile.frontend -t estimai-frontend:latest .
+	docker build -f Dockerfile.frontend \
+		--build-arg COMMIT_SHA=$${COMMIT_SHA:-dev} \
+		-t estimai-frontend:latest .
 
+# Get current git commit SHA
 docker-up:
-	docker compose up -d --build
+	COMMIT_SHA=$$(git rev-parse --short HEAD 2>/dev/null || echo "dev") docker compose up -d --build
 
 docker-down:
 	docker compose down

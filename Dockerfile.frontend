@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 # --- Build stage ---
 FROM node:18-alpine AS build
+
+# Build arguments
+ARG COMMIT_SHA=dev
+ENV COMMIT_SHA=${COMMIT_SHA}
 WORKDIR /app
 COPY frontend/package*.json ./frontend/
 RUN cd frontend && npm ci

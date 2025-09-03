@@ -16,7 +16,8 @@ from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOut
 from ..agents import takeoff_agent, scope_agent, leveler_agent, risk_agent
 
 # Set up logging
-logger = logging.getLogger(__name__)
+from ..core.logging import json_logger, log_job_transition
+logger = json_logger(__name__)
 
 
 from ..core.paths import artifacts_root, project_dir, stage_dir
@@ -134,6 +135,19 @@ async def ingest(pid: str, file: UploadFile):
     idx_path = write_sheet_index(pid)
     spec_path = write_spec_index(pid)
 
+    # Log successful ingestion
+    logger.info("File ingested successfully", extra={
+        'project_id': pid,
+        'path': '/ingest',
+        'method': 'POST',
+        'status': 200,
+        'result': {
+            'filename': file.filename,
+            'bytes': target.stat().st_size,
+            'content_type': file.content_type
+        }
+    })
+
     return {
         "project_id": pid,
         "saved_path": str(target),
@@ -146,27 +160,81 @@ async def ingest(pid: str, file: UploadFile):
     }
 
 async def run_takeoff(pid: str) -> TakeoffOutput:
-    result = await takeoff_agent.run(pid)
-    await _write_artifact(pid, "takeoff", result.model_dump())
-    
-    # Apply overrides if they exist
-    if hasattr(result, 'items') and result.items:
-        merged_items = merge_stage_with_overrides(pid, "takeoff", result.items)
-        # Update result with merged items
-        result.items = merged_items
-    
-    return result
+    start_time = time.time()
+    try:
+        result = await takeoff_agent.run(pid)
+        await _write_artifact(pid, "takeoff", result.model_dump())
+        
+        # Apply overrides if they exist
+        if hasattr(result, 'items') and result.items:
+            merged_items = merge_stage_with_overrides(pid, "takeoff", result.items)
+            # Update result with merged items
+            result.items = merged_items
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info("Takeoff completed successfully", extra={
+            'project_id': pid,
+            'path': '/takeoff',
+            'method': 'POST',
+            'status': 200,
+            'duration_ms': round(duration_ms, 2),
+            'result': {
+                'items_count': len(getattr(result, 'items', []) or []),
+                'has_pdf': True
+            }
+        })
+        
+        return result
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        error_msg = str(e)[:1000]  # Truncate to 1k chars
+        logger.error("Takeoff failed", extra={
+            'project_id': pid,
+            'path': '/takeoff',
+            'method': 'POST',
+            'status': 500,
+            'duration_ms': round(duration_ms, 2),
+            'error': error_msg
+        })
+        raise
 
 async def run_scope(pid: str) -> ScopeOutput:
-    result = await scope_agent.run(pid)
-    await _write_artifact(pid, "scope", result.model_dump())
-    
-    # Apply overrides if they exist
-    if hasattr(result, 'inclusions') and result.inclusions:
-        merged_inclusions = merge_stage_with_overrides(pid, "scope", result.inclusions)
-        result.inclusions = merged_inclusions
-    
-    return result
+    start_time = time.time()
+    try:
+        result = await scope_agent.run(pid)
+        await _write_artifact(pid, "scope", result.model_dump())
+        
+        # Apply overrides if they exist
+        if hasattr(result, 'inclusions') and result.inclusions:
+            merged_inclusions = merge_stage_with_overrides(pid, "scope", result.inclusions)
+            result.inclusions = merged_inclusions
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info("Scope completed successfully", extra={
+            'project_id': pid,
+            'path': '/scope',
+            'method': 'POST',
+            'status': 200,
+            'duration_ms': round(duration_ms, 2),
+            'result': {
+                'inclusions_count': len(getattr(result, 'inclusions', []) or []),
+                'exclusions_count': len(getattr(result, 'exclusions', []) or [])
+            }
+        })
+        
+        return result
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        error_msg = str(e)[:1000]  # Truncate to 1k chars
+        logger.error("Scope failed", extra={
+            'project_id': pid,
+            'path': '/scope',
+            'method': 'POST',
+            'status': 500,
+            'duration_ms': round(duration_ms, 2),
+            'error': error_msg
+        })
+        raise
 
 async def run_leveler(pid: str) -> List[LevelingResult]:
     results = await leveler_agent.run(pid)
@@ -241,6 +309,21 @@ async def run_estimate(pid: str) -> EstimateOutput:
         est.subtotal = new_subtotal
         est.total_bid = new_total_bid
 
+    # Log successful estimate
+    logger.info("Estimate completed successfully", extra={
+        'project_id': pid,
+        'path': '/estimate',
+        'method': 'POST',
+        'status': 200,
+        'result': {
+            'items_count': len(est.items),
+            'subtotal': round(est.subtotal, 2),
+            'total_bid': round(est.total_bid, 2),
+            'overhead_pct': overhead_pct,
+            'profit_pct': profit_pct
+        }
+    })
+
     return est
 
 async def run_full_pipeline(pid: str) -> Dict[str, Any]:
@@ -249,7 +332,16 @@ async def run_full_pipeline(pid: str) -> Dict[str, Any]:
       backend/artifacts/<pid>/<agent>/<timestamp>.json
     Returns a summary dict with any errors encountered.
     """
+    start_time = time.time()
     summary: Dict[str, Any] = {"project_id": pid, "steps": {}, "errors": []}
+    
+    logger.info("Starting full pipeline", extra={
+        'project_id': pid,
+        'path': '/pipeline',
+        'method': 'POST',
+        'status': 200,
+        'result': {'pipeline_started': True}
+    })
 
     # Takeoff
     try:
@@ -298,6 +390,35 @@ async def run_full_pipeline(pid: str) -> Dict[str, Any]:
         summary["errors"].append({"estimate": str(e)})
 
     summary["ok"] = len(summary["errors"]) == 0
+    
+    # Log pipeline completion
+    duration_ms = (time.time() - start_time) * 1000
+    if summary["ok"]:
+        logger.info("Full pipeline completed successfully", extra={
+            'project_id': pid,
+            'path': '/pipeline',
+            'method': 'POST',
+            'status': 200,
+            'duration_ms': round(duration_ms, 2),
+            'result': {
+                'steps_completed': len(summary["steps"]),
+                'errors_count': len(summary["errors"])
+            }
+        })
+    else:
+        logger.error("Full pipeline completed with errors", extra={
+            'project_id': pid,
+            'path': '/pipeline',
+            'method': 'POST',
+            'status': 500,
+            'duration_ms': round(duration_ms, 2),
+            'error': f"Pipeline completed with {len(summary['errors'])} errors",
+            'result': {
+                'steps_completed': len(summary["steps"]),
+                'errors_count': len(summary["errors"])
+            }
+        })
+    
     return summary
 
 

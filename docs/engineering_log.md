@@ -14,6 +14,30 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-03 — PR 13: Health Endpoint + Structured JSON Logging
+
+**Context:** Health endpoint and structured JSON logs for observability.
+
+**Change:** 
+- Added GET /health with uptime/version; JSON logs for requests and job transitions; optional COMMIT_SHA support
+- Created `backend/app/core/logging.py` with JSONFormatter, request context tracking, and job transition logging
+- Enhanced `backend/app/main.py` with LoggingMiddleware for request timing and structured logging
+- Updated `backend/app/services/jobs.py` and `backend/app/services/orchestrator.py` with structured logging
+- Added COMMIT_SHA environment variable support in `backend/app/core/runtime.py`
+- Updated `docker-compose.yml` and Dockerfiles to pass COMMIT_SHA from environment
+- Enhanced Makefile with COMMIT_SHA-aware Docker build commands
+
+**Endpoints touched:** GET /health
+
+**Artifacts shape/paths:** Logs now include structured context for debugging and monitoring
+
+**Risks/Notes:** 
+- Keep logs single-line JSON; include duration_ms for latency tracking
+- Single-line JSON logs for production log aggregation systems
+- Request context tracking works across async operations
+- COMMIT_SHA falls back to "dev" if not set
+- Docker builds automatically include current git commit SHA
+
 ### 2025-09-02 — PR 12: Dockerization
 
 **Context:** Containerized backend and frontend; added compose for local/prod-like runs.
