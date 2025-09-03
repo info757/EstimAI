@@ -91,11 +91,39 @@ async def ingest_async(pid: str, files: List[UploadFile] = File(...), current_us
 async def list_ingest(pid: str, current_user: dict = Depends(get_current_user)):
     """
     List ingested files for a project.
-    Returns a list of ingested files with metadata.
+    Returns a list of ingested files with metadata from the ingest manifest.
     """
-    # For PR 17, return empty list as noted in requirements
-    # This will be implemented in PR 18
-    return {"files": []}
+    from ..services.ingest import get_ingest_manifest
+    
+    try:
+        manifest = get_ingest_manifest(pid)
+        return manifest
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load ingest manifest: {e}")
+
+
+@r.post("/projects/{pid}/ingest/rebuild", tags=["projects"])
+async def rebuild_ingest(pid: str, current_user: dict = Depends(get_current_user)):
+    """
+    Rebuild ingest indices from raw files.
+    Returns a job ID that can be used to track progress.
+    """
+    from ..services.jobs import create_ingest_job
+    from ..services.ingest import rebuild_ingest_indices
+    
+    try:
+        # Create ingest job for rebuild
+        job_id = create_ingest_job(pid)
+        
+        # Run the rebuild job synchronously for now
+        from ..services.jobs import run_ingest_job
+        
+        result = run_ingest_job(job_id, pid, [], rebuild_ingest_indices)
+        
+        return {"job_id": job_id, "summary": result}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rebuild failed: {e}")
 
 @r.post("/projects/{pid}/agents/takeoff", response_model=TakeoffOutput, tags=["agents"])
 async def run_takeoff(pid: str, current_user: dict = Depends(get_current_user)):

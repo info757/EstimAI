@@ -259,7 +259,7 @@ def run_ingest_job(job_id: str, pid: str, files, ingest_func) -> Dict[str, Any]:
     Args:
         job_id: Job ID
         pid: Project ID
-        files: List of uploaded files
+        files: List of uploaded files (can be empty for rebuild operations)
         ingest_func: Function to call for ingestion
         
     Returns:
@@ -270,7 +270,15 @@ def run_ingest_job(job_id: str, pid: str, files, ingest_func) -> Dict[str, Any]:
         update_job(job_id, status=JobStatus.running)
         
         # Run the ingest function
-        result = ingest_func(pid, files, job_id)
+        # For rebuild operations, files might be empty
+        if files:
+            result = ingest_func(pid, files, job_id)
+        else:
+            # Handle functions that don't need files (like rebuild)
+            if ingest_func.__name__ == 'rebuild_ingest_indices':
+                result = ingest_func(pid, job_id)
+            else:
+                result = ingest_func(pid, files, job_id)
         
         # Update job status to complete with result
         update_job(job_id, status=JobStatus.complete, meta=result)

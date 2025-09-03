@@ -74,12 +74,14 @@ class TestIngestService:
         assert result["files_count"] == 1
         assert len(result["items"]) == 1
         
-        # Verify item structure
+        # Verify item structure (new manifest format)
         item = result["items"][0]
         assert "filename" in item
         assert "content_hash" in item
         assert "size" in item
-        assert "content_type" in item
+        assert "indexed_at" in item
+        assert "source_type" in item
+        assert "status" in item
         assert "raw_path" in item
         assert "parsed_path" in item
         

@@ -7,6 +7,7 @@ import {
   fileUrl 
 } from '../api/client'
 import { UploadPanel } from '../components/UploadPanel'
+import { IngestSources } from '../components/IngestSources'
 import type { JobResponse } from '../types/api'
 import Toast from '../components/Toast'
 import { useArtifacts } from '../hooks/useArtifacts'
@@ -76,7 +77,7 @@ export default function ProjectPage() {
     }
     
     poll()
-  }, [showToast, fetchArtifacts])
+  }, [showToast, refreshArtifacts])
 
   async function onGenerateBid() {
     setIsGeneratingBid(true)
@@ -89,7 +90,7 @@ export default function ProjectPage() {
       window.open(fileUrl(response.pdf_path), '_blank')
       
       // Refresh artifacts list
-      await fetchArtifacts()
+      await refreshArtifacts()
       
       showToast('success', 'Bid PDF generated successfully!')
       
@@ -176,6 +177,9 @@ export default function ProjectPage() {
         onComplete={refreshArtifacts}
         onUploadStateChange={setIsUploading}
       />
+
+      {/* Ingest Sources Section */}
+      <IngestSources pid={pid} />
 
       <div className="grid gap-3">
         <div className="text-lg font-semibold">Artifacts</div>

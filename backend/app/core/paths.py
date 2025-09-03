@@ -64,3 +64,8 @@ def project_ingest_parsed_dir(pid: str) -> Path:
     parsed_path = project_ingest_dir(pid) / "parsed"
     parsed_path.mkdir(parents=True, exist_ok=True)
     return parsed_path
+
+
+def project_ingest_manifest(pid: str) -> Path:
+    """Get the ingest manifest file path for a given project."""
+    return project_ingest_dir(pid) / "ingest_manifest.json"
