@@ -1,14 +1,18 @@
+"""
+Minimal pytest tests for PR 19 parsers (safe, no external services).
+
+Tests document parsing functionality with graceful fallbacks for missing dependencies.
+"""
+
 import pytest
+import csv
 import tempfile
-import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-import csv
-import json
 
 # Import the parsers module
 from app.services.parsers import (
-    detect_type, parse_document, parse_csv, parse_docx, 
+    detect_type, parse_to_normalized, parse_csv, parse_docx, 
     parse_xlsx, parse_image_ocr, parse_pdf_stub, build_normalized
 )
 
@@ -63,16 +67,16 @@ class TestCSVParser:
             writer.writerow(["Jane", "25", "Los Angeles"])
         
         # Parse the CSV
-        result = parse_csv(csv_file)
+        text, tables = parse_csv(csv_file)
         
         # Assert structure
-        assert "text" in result
-        assert "tables" in result
-        assert len(result["tables"]) == 1
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
+        assert len(tables) == 1
         
         # Check table content
-        table = result["tables"][0]
-        assert table["name"] is None  # CSV doesn't have sheet names
+        table = tables[0]
+        assert table["name"] == "test"  # CSV uses filename as table name
         assert len(table["rows"]) == 3  # Header + 2 data rows
         
         # Check specific content
@@ -81,18 +85,18 @@ class TestCSVParser:
         assert table["rows"][2] == ["Jane", "25", "Los Angeles"]
         
         # Check text content (flattened)
-        assert "John" in result["text"]
-        assert "Jane" in result["text"]
-        assert "New York" in result["text"]
+        assert "John" in text
+        assert "Jane" in text
+        assert "New York" in text
     
     def test_parse_csv_empty(self, tmp_path):
         """Test CSV parsing with empty file."""
         csv_file = tmp_path / "empty.csv"
         csv_file.write_text("")
         
-        result = parse_csv(csv_file)
-        assert result["text"] == ""
-        assert len(result["tables"]) == 0  # Empty CSV returns no tables
+        text, tables = parse_csv(csv_file)
+        assert text == ""
+        assert len(tables) == 0  # Empty CSV returns no tables
 
 
 class TestDOCXParser:
@@ -122,25 +126,39 @@ class TestDOCXParser:
         doc.save(str(docx_file))
         
         # Parse the DOCX
-        result = parse_docx(docx_file)
+        text, tables = parse_docx(docx_file)
         
         # Assert structure
-        assert "text" in result
-        assert "tables" in result
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
         
         # Check text content
-        assert "This is a test paragraph" in result["text"]
-        assert "This is another paragraph with some content" in result["text"]
+        assert "This is a test paragraph" in text
+        assert "This is another paragraph with some content" in text
         
         # Check table content
-        assert len(result["tables"]) == 1
-        table = result["tables"][0]
+        assert len(tables) == 1
+        table = tables[0]
         assert table["name"] == "Table_1"  # DOCX tables have auto-generated names
         assert len(table["rows"]) == 2
         
         # Check table data
         assert table["rows"][0] == ["Header1", "Header2"]
         assert table["rows"][1] == ["Data1", "Data2"]
+    
+    def test_parse_docx_fallback(self, tmp_path):
+        """Test DOCX parsing fallback when python-docx not available."""
+        # Mock the import to simulate missing dependency
+        with patch('app.services.parsers.DOCX_AVAILABLE', False):
+            # Create a dummy file
+            docx_file = tmp_path / "test.docx"
+            docx_file.write_text("dummy content")
+            
+            # Parse should return fallback message
+            text, tables = parse_docx(docx_file)
+            
+            assert "(docx parser unavailable: python-docx not installed)" in text
+            assert tables == []
 
 
 class TestXLSXParser:
@@ -178,17 +196,17 @@ class TestXLSXParser:
         wb.save(str(xlsx_file))
         
         # Parse the XLSX
-        result = parse_xlsx(xlsx_file)
+        text, tables = parse_xlsx(xlsx_file)
         
         # Assert structure
-        assert "text" in result
-        assert "tables" in result
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
         
         # Check tables (one per sheet)
-        assert len(result["tables"]) == 2
+        assert len(tables) == 2
         
         # Check first sheet
-        sheet1 = result["tables"][0]
+        sheet1 = tables[0]
         assert sheet1["name"] == "Sheet1"
         assert len(sheet1["rows"]) == 3
         assert sheet1["rows"][0] == ["Name", "Age"]
@@ -196,17 +214,31 @@ class TestXLSXParser:
         assert sheet1["rows"][2] == ["Jane", "25"]
         
         # Check second sheet
-        sheet2 = result["tables"][1]
+        sheet2 = tables[1]
         assert sheet2["name"] == "Sheet2"
         assert len(sheet2["rows"]) == 2
         assert sheet2["rows"][0] == ["Product", "Price"]
         assert sheet2["rows"][1] == ["Widget", "10.99"]
         
         # Check text content (flattened)
-        assert "John" in result["text"]
-        assert "Jane" in result["text"]
-        assert "Widget" in result["text"]
-        assert "10.99" in result["text"]
+        assert "John" in text
+        assert "Jane" in text
+        assert "Widget" in text
+        assert "10.99" in text
+    
+    def test_parse_xlsx_fallback(self, tmp_path):
+        """Test XLSX parsing fallback when openpyxl not available."""
+        # Mock the import to simulate missing dependency
+        with patch('app.services.parsers.XLSX_AVAILABLE', False):
+            # Create a dummy file
+            xlsx_file = tmp_path / "test.xlsx"
+            xlsx_file.write_text("dummy content")
+            
+            # Parse should return fallback message
+            text, tables = parse_xlsx(xlsx_file)
+            
+            assert "(xlsx parser unavailable: openpyxl not installed)" in text
+            assert tables == []
 
 
 class TestImageOCRParser:
@@ -219,13 +251,13 @@ class TestImageOCRParser:
         png_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde')
         
         # Parse with OCR disabled
-        result = parse_image_ocr(png_file, lang="eng", enabled=False)
+        text, tables = parse_image_ocr(png_file, enabled=False, lang="eng")
         
         # Should return stub content
-        assert "text" in result
-        assert "tables" in result
-        assert result["text"] == "(OCR disabled)"
-        assert len(result["tables"]) == 0
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
+        assert text == "(OCR disabled)"
+        assert len(tables) == 0
     
     @pytest.mark.xfail(
         reason="Tesseract not installed or OCR not working",
@@ -238,13 +270,41 @@ class TestImageOCRParser:
         png_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde')
         
         # Parse with OCR enabled
-        result = parse_image_ocr(png_file, lang="eng", enabled=True)
+        text, tables = parse_image_ocr(png_file, enabled=True, lang="eng")
         
         # Should return OCR result or fallback
-        assert "text" in result
-        assert "tables" in result
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
         # OCR might return empty text for minimal images, which is fine
-        assert isinstance(result["text"], str)
+        assert isinstance(text, str)
+    
+    def test_parse_image_ocr_pil_missing(self, tmp_path):
+        """Test image parsing fallback when PIL not available."""
+        # Mock the import to simulate missing dependency
+        with patch('app.services.parsers.PIL_AVAILABLE', False):
+            # Create a dummy file
+            png_file = tmp_path / "test.png"
+            png_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde')
+            
+            # Parse should return fallback message
+            text, tables = parse_image_ocr(png_file, enabled=True, lang="eng")
+            
+            assert "(OCR unavailable: PIL not installed)" in text
+            assert tables == []
+    
+    def test_parse_image_ocr_tesseract_missing(self, tmp_path):
+        """Test image parsing fallback when pytesseract not available."""
+        # Mock the import to simulate missing dependency
+        with patch('app.services.parsers.TESSERACT_AVAILABLE', False):
+            # Create a dummy file
+            png_file = tmp_path / "test.png"
+            png_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde')
+            
+            # Parse should return fallback message
+            text, tables = parse_image_ocr(png_file, enabled=True, lang="eng")
+            
+            assert "(OCR unavailable: pytesseract not installed)" in text
+            assert tables == []
 
 
 class TestPDFParser:
@@ -256,13 +316,13 @@ class TestPDFParser:
         pdf_file = tmp_path / "test.pdf"
         pdf_file.write_text("%PDF-1.4\n%Test PDF content\n")
         
-        result = parse_pdf_stub(pdf_file)
+        text, tables = parse_pdf_stub(pdf_file)
         
         # Should return stub content
-        assert "text" in result
-        assert "tables" in result
-        assert result["text"] == "(PDF text extraction not yet implemented)"
-        assert len(result["tables"]) == 0
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
+        assert text == "(pdf parsing stub — not yet implemented)"
+        assert len(tables) == 0
 
 
 class TestBuildNormalized:
@@ -284,10 +344,10 @@ class TestBuildNormalized:
         assert result["content"]["tables"] == tables
 
 
-class TestParseDocument:
+class TestParseToNormalized:
     """Test main document parsing function."""
     
-    def test_parse_document_csv(self, tmp_path):
+    def test_parse_to_normalized_csv(self, tmp_path):
         """Test main parser with CSV file."""
         # Create a test CSV file
         csv_file = tmp_path / "test.csv"
@@ -296,28 +356,44 @@ class TestParseDocument:
             writer.writerow(["Header"])
             writer.writerow(["Data"])
         
+        # Build metadata
+        meta = {
+            "filename": "test.csv",
+            "content_hash": "abc123",
+            "size": 100
+        }
+        
         # Parse using main function
-        result = parse_document(csv_file, "csv")
+        result = parse_to_normalized(csv_file, meta)
         
         # Check normalized structure
         assert result["type"] == "csv"
         assert "meta" in result
         assert "content" in result
         assert result["meta"]["filename"] == "test.csv"
+        assert result["meta"]["content_hash"] == "abc123"
         assert result["content"]["text"] == "Header Data"
         assert len(result["content"]["tables"]) == 1
     
-    def test_parse_document_unknown_type(self, tmp_path):
+    def test_parse_to_normalized_unknown_type(self, tmp_path):
         """Test main parser with unknown file type."""
         # Create a dummy file
         unknown_file = tmp_path / "test.xyz"
         unknown_file.write_text("Some content")
         
+        # Build metadata
+        meta = {
+            "filename": "test.xyz",
+            "content_hash": "xyz789",
+            "size": 50
+        }
+        
         # Parse using main function
-        result = parse_document(unknown_file, "unknown")
+        result = parse_to_normalized(unknown_file, meta)
         
         # Check normalized structure
         assert result["type"] == "unknown"
+        assert result["meta"]["filename"] == "test.xyz"
         assert result["content"]["text"] == ""
         assert len(result["content"]["tables"]) == 0
 
@@ -336,7 +412,12 @@ class TestParserIntegration:
         
         # Simulate ingest workflow
         doc_type = detect_type(csv_file.name)
-        parsed_content = parse_document(csv_file, doc_type)
+        meta = {
+            "filename": csv_file.name,
+            "content_hash": "test123",
+            "size": 100
+        }
+        parsed_content = parse_to_normalized(csv_file, meta)
         
         # Verify the structure matches ingest expectations
         assert parsed_content["type"] == "csv"
@@ -349,3 +430,36 @@ class TestParserIntegration:
         assert "Test" in parsed_content["content"]["text"]
         assert "Data" in parsed_content["content"]["text"]
         assert len(parsed_content["content"]["tables"]) > 0
+
+
+class TestParserSafety:
+    """Test that parsers handle errors gracefully."""
+    
+    def test_parser_handles_missing_file(self):
+        """Test that parsers handle missing files gracefully."""
+        missing_file = Path("/nonexistent/file.txt")
+        
+        # All parsers should handle missing files gracefully
+        text, tables = parse_csv(missing_file)
+        assert "Error parsing CSV" in text
+        assert tables == []
+        
+        text, tables = parse_docx(missing_file)
+        assert "Error parsing DOCX" in text
+        assert tables == []
+        
+        text, tables = parse_xlsx(missing_file)
+        assert "Error parsing XLSX" in text
+        assert tables == []
+    
+    def test_parser_handles_corrupted_files(self, tmp_path):
+        """Test that parsers handle corrupted files gracefully."""
+        # Create a corrupted CSV file
+        corrupted_csv = tmp_path / "corrupted.csv"
+        corrupted_csv.write_text("Invalid CSV content\nwith\nbroken\nformat")
+        
+        # Parser should handle gracefully
+        text, tables = parse_csv(corrupted_csv)
+        # Should either parse what it can or return error message
+        assert isinstance(text, str)
+        assert isinstance(tables, list)
