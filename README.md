@@ -309,6 +309,32 @@ backend/static/samples/
 4. Monitor progress with job polling and toast notifications
 5. View results in the artifacts list after successful ingestion
 
+## Upload Limits (Mini-PR B)
+
+**File Type Restrictions:**
+- **Allowed Extensions**: PDF, DOCX, XLSX, CSV, PNG, JPG, JPEG, TIFF
+- **Case Insensitive**: File extensions are validated regardless of case
+- **Rejection**: Unsupported file types return HTTP 415 with clear error message
+
+**File Size Limits:**
+- **Maximum Size**: 25 MB per file (configurable via `MAX_UPLOAD_SIZE_MB`)
+- **Streaming Validation**: File size is checked during upload to prevent large file abuse
+- **Cleanup**: Partial files are automatically removed if size limit is exceeded
+- **Error Response**: HTTP 413 with descriptive message when file is too large
+
+**Configuration:**
+```bash
+# File type restrictions
+ALLOWED_EXTS=.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff
+
+# File size limit (in MB)
+MAX_UPLOAD_SIZE_MB=25
+```
+
+**Error Messages:**
+- **415 Unsupported Media Type**: "Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF."
+- **413 Payload Too Large**: "File too large (limit 25 MB)."
+
 ## Troubleshooting
 
 **curl hangs in terminal**

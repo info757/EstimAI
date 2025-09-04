@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from ..core.paths import project_ingest_raw_dir, project_ingest_parsed_dir, project_ingest_manifest
 from ..core.logging import json_logger
@@ -144,6 +144,18 @@ def ingest_files(pid: str, files: List[UploadFile], job_id: str = None) -> Dict[
                 "content_type": file.content_type
             })
             
+            # Validate file extension
+            from ..core.config import get_settings
+            settings = get_settings()
+            
+            if file.filename:
+                file_ext = Path(file.filename).suffix.lower()
+                if file_ext not in settings.ALLOWED_EXTS:
+                    raise HTTPException(
+                        status_code=415,
+                        detail=f"Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF."
+                    )
+            
             # Generate timestamped filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_filename = file.filename.replace(" ", "_").replace("/", "_")
@@ -153,17 +165,35 @@ def ingest_files(pid: str, files: List[UploadFile], job_id: str = None) -> Dict[
             # Stream file to disk and compute hash
             content_hash = hashlib.sha256()
             file_size = 0
+            max_size_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024  # Convert MB to bytes
             
-            with open(file_path, "wb") as f:
-                # Read in chunks to handle large files efficiently
-                chunk_size = 8192  # 8KB chunks
-                while chunk := file.file.read(chunk_size):
-                    f.write(chunk)
-                    content_hash.update(chunk)
-                    file_size += len(chunk)
-            
-            # Compute final hash
-            final_hash = content_hash.hexdigest()
+            try:
+                with open(file_path, "wb") as f:
+                    # Read in chunks to handle large files efficiently
+                    chunk_size = 8192  # 8KB chunks
+                    while chunk := file.file.read(chunk_size):
+                        f.write(chunk)
+                        content_hash.update(chunk)
+                        file_size += len(chunk)
+                        
+                        # Check file size limit during streaming
+                        if file_size > max_size_bytes:
+                            raise HTTPException(
+                                status_code=413,
+                                detail=f"File too large (limit {settings.MAX_UPLOAD_SIZE_MB} MB)."
+                            )
+                
+                # Compute final hash
+                final_hash = content_hash.hexdigest()
+                
+            except HTTPException:
+                # Re-raise HTTP exceptions (like size limit exceeded)
+                raise
+            except Exception as e:
+                # Clean up partial file on any other error
+                if file_path.exists():
+                    file_path.unlink()
+                raise e
             
             # Check for duplicates by content hash (for true deduplication)
             existing_item_by_hash = find_existing_item_by_hash(manifest, final_hash)
@@ -201,23 +231,26 @@ def ingest_files(pid: str, files: List[UploadFile], job_id: str = None) -> Dict[
                 })
                 
                 # Parse document using appropriate parser
-                from .parsers import detect_type, parse_document
+                from .parsers import detect_type, parse_to_normalized
                 from ..core.config import get_settings
                 
                 settings = get_settings()
-                doc_type = detect_type(file.filename, None)
+                doc_type = detect_type(file.filename)
+                
+                # Build metadata
+                meta = {
+                    "filename": file.filename,
+                    "content_hash": final_hash,
+                    "size": file_size
+                }
                 
                 # Parse the document and get normalized model
-                parsed_record = parse_document(
-                    file_path, 
-                    doc_type, 
+                parsed_record = parse_to_normalized(
+                    file_path,
+                    meta,
                     ocr_enabled=settings.OCR_ENABLED,
                     ocr_lang=settings.OCR_LANG
                 )
-                
-                # Update metadata with actual values
-                parsed_record["meta"]["content_hash"] = final_hash
-                parsed_record["meta"]["size"] = file_size
                 
                 # Save normalized parsed record
                 parsed_file_path = parsed_dir / f"{final_hash[:8]}_{safe_filename}.json"
@@ -420,23 +453,26 @@ def ingest_filepaths(pid: str, file_paths: List[str]) -> Dict[str, Any]:
                 })
                 
                 # Parse document using appropriate parser
-                from .parsers import detect_type, parse_document
+                from .parsers import detect_type, parse_to_normalized
                 from ..core.config import get_settings
                 
                 settings = get_settings()
-                doc_type = detect_type(filename, None)
+                doc_type = detect_type(filename)
+                
+                # Build metadata
+                meta = {
+                    "filename": filename,
+                    "content_hash": final_hash,
+                    "size": file_size
+                }
                 
                 # Parse the document and get normalized model
-                parsed_record = parse_document(
-                    ingest_file_path, 
-                    doc_type, 
+                parsed_record = parse_to_normalized(
+                    ingest_file_path,
+                    meta,
                     ocr_enabled=settings.OCR_ENABLED,
                     ocr_lang=settings.OCR_LANG
                 )
-                
-                # Update metadata with actual values
-                parsed_record["meta"]["content_hash"] = final_hash
-                parsed_record["meta"]["size"] = file_size
                 
                 # Save normalized parsed record
                 parsed_file_path = parsed_dir / f"{final_hash[:8]}_{safe_filename}.json"

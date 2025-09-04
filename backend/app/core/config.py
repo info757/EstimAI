@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     OCR_ENABLED: bool = False
     OCR_LANG: str = "eng"
     
+    # Upload Guardrails
+    ALLOWED_EXTS: str = ".pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff"
+    MAX_UPLOAD_SIZE_MB: int = 25
+    
     @validator('OCR_ENABLED', pre=True)
     def parse_ocr_enabled(cls, v):
         """Parse OCR_ENABLED from environment string."""
@@ -58,6 +62,18 @@ class Settings(BaseSettings):
         if v.upper() not in valid_levels:
             raise ValueError(f'LOG_LEVEL must be one of: {valid_levels}')
         return v.upper()
+    
+    @validator('ALLOWED_EXTS')
+    def parse_allowed_exts(cls, v):
+        """Parse ALLOWED_EXTS string into list of lowercase extensions."""
+        return [ext.strip().lower() for ext in v.split(',') if ext.strip()]
+    
+    @validator('MAX_UPLOAD_SIZE_MB')
+    def validate_max_upload_size(cls, v):
+        """Validate max upload size is positive."""
+        if v <= 0:
+            raise ValueError('MAX_UPLOAD_SIZE_MB must be positive')
+        return v
     
     class Config:
         env_file = [".env", "../.env", "../../.env"]
