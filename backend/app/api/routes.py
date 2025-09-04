@@ -177,3 +177,91 @@ async def create_bid(pid: str, current_user: dict = Depends(get_current_user)):
     name = Path(pdf_abs).name
     pdf_rel = f"artifacts/{pid}/bid/{name}"      # ← URL path under /artifacts mount
     return {"project_id": pid, "pdf_path": pdf_rel}
+
+
+@r.get("/samples", tags=["samples"])
+async def list_samples():
+    """
+    List available sample files.
+    Returns a list of sample files with metadata.
+    """
+    from ..scripts.seed_demo import ensure_samples_directory
+    from pathlib import Path
+    import json
+    
+    try:
+        # Ensure samples directory exists
+        samples_dir = ensure_samples_directory()
+        index_path = samples_dir / "index.json"
+        
+        # If index.json doesn't exist, trigger seeding
+        if not index_path.exists():
+            from ..scripts.seed_demo import run as seed_demo
+            seed_demo()
+        
+        # Load and return the index
+        with open(index_path, 'r') as f:
+            samples = json.load(f)
+        
+        return {"samples": samples}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load samples: {e}")
+
+
+@r.get("/samples/{slug}", tags=["samples"])
+async def get_sample(slug: str):
+    """
+    Get a sample file by slug.
+    Returns the file content with appropriate MIME type.
+    """
+    from ..scripts.seed_demo import ensure_samples_directory
+    from pathlib import Path
+    import json
+    from fastapi.responses import FileResponse
+    
+    try:
+        # Ensure samples directory exists
+        samples_dir = ensure_samples_directory()
+        index_path = samples_dir / "index.json"
+        
+        # If index.json doesn't exist, trigger seeding
+        if not index_path.exists():
+            from ..scripts.seed_demo import run as seed_demo
+            seed_demo()
+        
+        # Load the index to find the file
+        with open(index_path, 'r') as f:
+            samples = json.load(f)
+        
+        # Find the sample by slug
+        sample = None
+        for s in samples:
+            if s["slug"] == slug:
+                sample = s
+                break
+        
+        if not sample:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Sample '{slug}' not found. Available samples: {[s['slug'] for s in samples]}"
+            )
+        
+        # Return the file
+        file_path = samples_dir / sample["filename"]
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Sample file '{sample['filename']}' not found on disk"
+            )
+        
+        return FileResponse(
+            path=str(file_path),
+            media_type=sample["mime"],
+            filename=sample["filename"]
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve sample: {e}")

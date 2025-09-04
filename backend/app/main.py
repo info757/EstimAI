@@ -222,6 +222,12 @@ async def startup_event():
         logger.info(f"📁 Bootstrapping demo project structure at: {ARTIFACTS_DIR.resolve() / settings.DEMO_PROJECT_ID}")
         ensure_demo_project_structure(settings.DEMO_PROJECT_ID)
         logger.info(f"✅ Demo project structure ready")
+        
+        # Seed demo samples
+        logger.info(f"🌱 Seeding demo sample files...")
+        from .scripts.seed_demo import run as seed_demo
+        seed_demo()
+        logger.info(f"✅ Demo seed ensured")
     else:
         logger.info(f"🔒 Demo mode DISABLED - All projects require authentication")
     
