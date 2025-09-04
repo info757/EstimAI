@@ -382,6 +382,36 @@ DEMO_RATE_LIMIT_PER_MIN=60
 - All other project pages remain protected behind authentication
 - Demo project link navigates to `/projects/{DEMO_PROJECT_ID}` (default: `/projects/demo`)
 
+## Run the Demo
+
+**Quick Start:**
+1. Copy `.env.example` → `.env` and keep `DEMO_PUBLIC=true`
+2. `make demo-seed` - Generate sample files
+3. In one terminal: `make dev` (backend)
+4. In another terminal: `make web` (frontend)
+5. Open http://localhost:5173/projects/demo or `make demo-open`
+
+**Environment Variables for Demo:**
+```bash
+# Demo Mode
+DEMO_PUBLIC=true
+DEMO_PROJECT_ID=demo
+DEMO_RATE_LIMIT_PER_MIN=60
+
+# Frontend
+VITE_DEMO_PUBLIC=true
+VITE_DEMO_PROJECT_ID=demo
+VITE_API_BASE=http://localhost:8000/api
+VITE_FILE_BASE=http://localhost:8000
+
+# File Limits
+MAX_FILE_MB=25
+MAX_FILES_PER_BATCH=10
+ALLOWED_MIME=application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain,image/png,image/jpeg
+```
+
+**If anything gets weird:** `make demo-reset` - Clears demo artifacts and reseeds
+
 ## Troubleshooting
 
 **curl hangs in terminal**
