@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     JWT_ALG: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
+    # OCR Configuration
+    OCR_ENABLED: bool = False
+    OCR_LANG: str = "eng"
+    
+    @validator('OCR_ENABLED', pre=True)
+    def parse_ocr_enabled(cls, v):
+        """Parse OCR_ENABLED from environment string."""
+        if isinstance(v, str):
+            return v.lower() in ("1", "true", "yes")
+        return bool(v)
+    
     @validator('ARTIFACT_DIR')
     def validate_artifact_dir(cls, v):
         """Ensure ARTIFACT_DIR is an absolute path and create if it doesn't exist."""

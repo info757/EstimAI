@@ -18,6 +18,8 @@ cd estimai
 cp .env.example .env
 # Edit .env and set an ABSOLUTE ARTIFACT_DIR path
 # For authentication (PR 15+), set JWT_SECRET to a secure value
+# For OCR (PR 19+), optionally set OCR_ENABLED=true and OCR_LANG=eng
+# Note: .env.example may not include OCR settings - add them manually if needed
 
 # Create virtual environment
 python3.11 -m venv .venv
@@ -168,6 +170,12 @@ backend/artifacts/
 - `VITE_API_BASE`: Backend API URL (default: http://localhost:8000/api)
 - `VITE_FILE_BASE`: File serving URL (default: http://localhost:8000)
 
+**OCR Configuration (PR 19+):**
+- `OCR_ENABLED`: Enable OCR for image processing (default: false)
+- `OCR_LANG`: OCR language code (default: eng)
+
+**Note:** Add these variables to your `.env` file if you want to enable OCR functionality.
+
 ### API Endpoints
 **Authentication Required (PR 15+):**
 - `POST /api/auth/login` - Authenticate and get JWT token
@@ -212,6 +220,64 @@ make clean  # Clear caches
 
 **⚠️ NOTE:** This is demo-only scaffolding; replace with real user store and authentication system in production.
 
+## Multi-format Parsing (PR 19)
+
+**Supported Formats:**
+- **DOCX**: Text extraction from paragraphs and tables
+- **XLSX**: Sheet data extraction with table structure
+- **CSV**: Comma-separated value parsing
+- **Images**: Basic OCR text extraction (PNG/JPG/TIFF) when `OCR_ENABLED=true`
+- **PDF**: Stub parser (text extraction coming soon)
+
+**OCR Configuration:**
+```bash
+# Enable OCR for image processing
+OCR_ENABLED=true
+OCR_LANG=eng  # Language code (default: eng)
+```
+
+**Note:** For OCR to work, you must have Tesseract installed on the host/container system.
+
+**Environment Variables to Add to .env:**
+```bash
+# OCR Configuration (PR 19+)
+OCR_ENABLED=false
+OCR_LANG=eng
+```
+
+**Normalized Document Model:**
+All parsed documents return a consistent structure:
+```json
+{
+  "type": "docx|xlsx|csv|image|pdf|unknown",
+  "meta": {
+    "filename": "document.docx",
+    "content_hash": "sha256:...",
+    "size": 12345
+  },
+  "content": {
+    "text": "Extracted text content...",
+    "tables": [
+      {
+        "name": "Sheet1",
+        "rows": [["Header1", "Header2"], ["Data1", "Data2"]]
+      }
+    ]
+  }
+}
+```
+
+**Implementation Details:**
+- Normalized doc JSON is written to `artifacts/{pid}/ingest/parsed/…` with the structure above
+- For OCR you must have Tesseract installed on the host/container
+- Set `OCR_ENABLED=true` and `OCR_LANG=eng` to enable image text extraction
+
+**Dependencies:**
+- `python-docx>=1.1.0` - DOCX parsing
+- `openpyxl>=3.1.5` - XLSX parsing  
+- `pillow>=10.4.0` - Image processing
+- `pytesseract>=0.3.13` - OCR (optional)
+
 ## Troubleshooting
 
 **curl hangs in terminal**
@@ -241,3 +307,10 @@ make clean  # Clear caches
 - Verify token hasn't expired (default: 60 minutes)
 - Use demo credentials for testing: `demo@example.com` / `demo123`
 - If getting 401/403 errors, try logging in again to get a fresh token
+
+**OCR Issues (PR 19+)**
+- Ensure Tesseract is installed on your system: `tesseract --version`
+- Check that `OCR_ENABLED=true` is set in your `.env` file
+- Verify `OCR_LANG` is set to a supported language code (default: eng)
+- For Docker deployments, ensure Tesseract is installed in the container
+- If OCR fails, images will still be processed but with stub text "(OCR disabled)"

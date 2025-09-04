@@ -14,6 +14,34 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-03 — PR 19: Multi-format Parsing + OCR Stubs
+
+**Context:** Added multi-format parsing pipeline with normalized doc model, OCR optional.
+
+**Change:** 
+- Created `backend/app/services/parsers.py` with comprehensive document parsing capabilities
+- Added support for DOCX, XLSX, CSV, Image (OCR), and PDF (stub) file formats
+- Implemented normalized document model with consistent JSON structure across all formats
+- Enhanced `backend/app/core/config.py` with OCR configuration (OCR_ENABLED, OCR_LANG)
+- Updated `backend/requirements.txt` with parsing dependencies (python-docx, openpyxl, pillow, pytesseract)
+- Modified `backend/app/services/ingest.py` to integrate parsers and write normalized parsed JSON
+- Created comprehensive test suite `backend/tests/test_parsers.py` for all parsing functionality
+- Updated README.md with document parsing documentation and OCR configuration
+
+**Endpoints touched:** none (ingestion routes unchanged)
+
+**Artifacts shape/paths:** 
+- Normalized parsed JSON now written to `artifacts/{pid}/ingest/parsed/...` with consistent structure
+- Document model: `{ type, meta: {filename, content_hash, size}, content: { text, tables[] } }`
+- Raw files remain in `artifacts/{pid}/ingest/raw/...` as before
+
+**Risks/Notes:** 
+- OCR gated by OCR_ENABLED and requires Tesseract on host/container
+- PDF parsing still stub implementation (text extraction coming soon)
+- All parsers gracefully handle missing dependencies with informative fallback messages
+- Maintains backward compatibility with existing ingest workflow and manifest system
+- Comprehensive test coverage with proper mocking for optional dependencies
+
 ### 2025-09-03 — PR 15: Auth Scaffolding
 
 **Context:** Implement backend authentication helpers for JWT-based user authentication.
