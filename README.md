@@ -174,7 +174,7 @@ backend/artifacts/
 - `OCR_ENABLED`: Enable OCR for image processing (default: false)
 - `OCR_LANG`: OCR language code (default: eng)
 
-**Note:** Add these variables to your `.env` file if you want to enable OCR functionality.
+**Note:** Add these variables to your `.env` file if you want to enable OCR functionality. These should also be added to `.env.example` for team reference.
 
 ### API Endpoints
 **Authentication Required (PR 15+):**
@@ -245,6 +245,8 @@ OCR_ENABLED=false
 OCR_LANG=eng
 ```
 
+**Note:** These variables should also be added to `.env.example` for team reference.
+
 **Normalized Document Model:**
 All parsed documents return a consistent structure:
 ```json
@@ -277,6 +279,35 @@ All parsed documents return a consistent structure:
 - `openpyxl>=3.1.5` - XLSX parsing  
 - `pillow>=10.4.0` - Image processing
 - `pytesseract>=0.3.13` - OCR (optional)
+
+## Samples (Mini-PR A)
+
+**Quick Start with Sample Files:**
+- Place small demo files in `backend/static/samples/` (PDF, DOCX, XLSX, CSV, PNG/JPG)
+- The UI offers "Use sample" buttons that upload via the normal ingest route
+- Sample files are served from `/static/samples/` endpoint and processed through the full ingest pipeline
+- Perfect for testing document parsing, OCR, and the complete ingest workflow
+
+**Sample File Setup:**
+```bash
+# Create sample files directory (if not exists)
+mkdir -p backend/static/samples
+
+# Add sample files (example names)
+backend/static/samples/
+├── sample.pdf      # Test PDF parsing
+├── sample.docx     # Test DOCX parsing  
+├── sample.xlsx     # Test XLSX parsing
+├── sample.csv      # Test CSV parsing
+└── sample.jpg      # Test image/OCR processing
+```
+
+**Usage:**
+1. Navigate to any project page
+2. Look for "No file handy? Try a sample" section above the upload panel
+3. Click any sample file button to automatically download and ingest
+4. Monitor progress with job polling and toast notifications
+5. View results in the artifacts list after successful ingestion
 
 ## Troubleshooting
 
