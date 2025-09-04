@@ -243,9 +243,18 @@ OCR_LANG=eng  # Language code (default: eng)
 # OCR Configuration (PR 19+)
 OCR_ENABLED=false
 OCR_LANG=eng
+
+# Upload Guardrails (Mini-PR B)
+ALLOWED_EXTS=.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff
+MAX_UPLOAD_SIZE_MB=25
+
+# Demo Mode (PR 24)
+DEMO_PUBLIC=false
+DEMO_PROJECT_ID=demo
+DEMO_RATE_LIMIT_PER_MIN=60
 ```
 
-**Note:** These variables should also be added to `.env.example` for team reference.
+**Note:** These variables should also be added to `.env.example` for team reference. Note that `.env.example` is blocked by global ignore, so add these manually.
 
 **Normalized Document Model:**
 All parsed documents return a consistent structure:
@@ -334,6 +343,38 @@ MAX_UPLOAD_SIZE_MB=25
 **Error Messages:**
 - **415 Unsupported Media Type**: "Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF."
 - **413 Payload Too Large**: "File too large (limit 25 MB)."
+
+## Demo Mode (PR 24)
+
+**Public Access for Demo Projects:**
+- **DEMO_PUBLIC=true**: Exposes only the demo project without login requirement
+- **DEMO_PROJECT_ID**: Configurable project ID for public access (default: "demo")
+- **Rate Limiting**: Per-IP rate limit applies to demo routes only
+- **Authentication**: All other projects remain protected behind authentication
+
+**Demo Mode Features:**
+- **Unauthenticated Access**: Users can access `/api/projects/{DEMO_PROJECT_ID}/*` without login
+- **Static Files**: Public access to `/artifacts/{DEMO_PROJECT_ID}/*` for demo artifacts
+- **Rate Limiting**: Configurable per-IP limit (default: 60 requests per minute)
+- **Soft Limit**: Returns HTTP 429 with message when rate limit exceeded
+
+**Configuration:**
+```bash
+# Enable demo mode
+DEMO_PUBLIC=true
+
+# Set demo project ID
+DEMO_PROJECT_ID=demo
+
+# Configure rate limit (requests per minute per IP)
+DEMO_RATE_LIMIT_PER_MIN=60
+```
+
+**Security Notes:**
+- Demo mode only affects the specified demo project
+- All other projects and endpoints remain fully protected
+- Rate limiting prevents abuse of public demo access
+- IP detection handles proxy/load balancer scenarios
 
 ## Troubleshooting
 

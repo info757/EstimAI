@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     ALLOWED_EXTS: str = ".pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff"
     MAX_UPLOAD_SIZE_MB: int = 25
     
+    # Demo Mode Configuration
+    DEMO_PUBLIC: bool = False
+    DEMO_PROJECT_ID: str = "demo"
+    DEMO_RATE_LIMIT_PER_MIN: int = 60
+    
     @validator('OCR_ENABLED', pre=True)
     def parse_ocr_enabled(cls, v):
         """Parse OCR_ENABLED from environment string."""
@@ -73,6 +78,20 @@ class Settings(BaseSettings):
         """Validate max upload size is positive."""
         if v <= 0:
             raise ValueError('MAX_UPLOAD_SIZE_MB must be positive')
+        return v
+    
+    @validator('DEMO_PUBLIC', pre=True)
+    def parse_demo_public(cls, v):
+        """Parse DEMO_PUBLIC from environment string."""
+        if isinstance(v, str):
+            return v.lower() in ("1", "true", "yes")
+        return bool(v)
+    
+    @validator('DEMO_RATE_LIMIT_PER_MIN')
+    def validate_demo_rate_limit(cls, v):
+        """Validate demo rate limit is positive."""
+        if v <= 0:
+            raise ValueError('DEMO_RATE_LIMIT_PER_MIN must be positive')
         return v
     
     class Config:
