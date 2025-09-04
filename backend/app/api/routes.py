@@ -265,3 +265,33 @@ async def get_sample(slug: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve sample: {e}")
+
+
+@r.post("/demo/reset", tags=["demo"])
+async def reset_demo():
+    """
+    Reset demo environment (only available when DEMO_PUBLIC=true).
+    Clears demo artifacts and reseeds samples.
+    """
+    from ..core.config import get_settings
+    from ..scripts.reset_demo import run as reset_demo_run
+    
+    settings = get_settings()
+    
+    # Only allow if demo mode is enabled
+    if not settings.DEMO_PUBLIC:
+        raise HTTPException(
+            status_code=403, 
+            detail="Demo reset only available when DEMO_PUBLIC=true"
+        )
+    
+    try:
+        # Run the reset logic
+        reset_demo_run()
+        return {"ok": True}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Demo reset failed: {e}"
+        )

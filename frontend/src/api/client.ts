@@ -169,3 +169,8 @@ export async function ingestAsync(pid: string, files: File[]): Promise<{ job_id:
   files.forEach(f => form.append("files", f));
   return await post<{ job_id: string }>(`/projects/${encodeURIComponent(pid)}/ingest_async`, form);
 }
+
+// Demo reset API Method
+export async function resetDemo(): Promise<{ ok: boolean }> {
+  return await post<{ ok: boolean }>('/demo/reset');
+}
