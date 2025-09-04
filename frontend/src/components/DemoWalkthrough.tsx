@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { CheckIcon, XMarkIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 
 interface DemoWalkthroughProps {}
 
@@ -108,13 +107,13 @@ export const DemoWalkthrough: React.FC<DemoWalkthroughProps> = () => {
               You're viewing EstimAI in Demo Mode. Uploads are limited to our sample files, and data resets periodically.
             </p>
           </div>
-          <button
-            onClick={dismissBanner}
-            className="ml-4 text-blue-400 hover:text-blue-600 transition-colors"
-            aria-label="Dismiss banner"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
+                      <button
+              onClick={dismissBanner}
+              className="ml-4 text-blue-400 hover:text-blue-600 transition-colors text-lg font-bold"
+              aria-label="Dismiss banner"
+            >
+              ×
+            </button>
         </div>
       </div>
 
@@ -125,10 +124,10 @@ export const DemoWalkthrough: React.FC<DemoWalkthroughProps> = () => {
           <div className="relative">
             <button
               onClick={() => setShowHelp(!showHelp)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors text-lg font-bold"
               aria-label="Help"
             >
-              <QuestionMarkCircleIcon className="h-5 w-5" />
+              ?
             </button>
             
             {/* Help Popover */}
@@ -154,7 +153,7 @@ export const DemoWalkthrough: React.FC<DemoWalkthroughProps> = () => {
                   : 'bg-gray-100 border-gray-300'
               }`}>
                 {step.completed ? (
-                  <CheckIcon className="w-4 h-4 text-white" />
+                  <span className="text-white text-sm">✓</span>
                 ) : (
                   <span className="text-xs text-gray-500">{step.id}</span>
                 )}

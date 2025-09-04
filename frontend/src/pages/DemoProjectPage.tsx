@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../context/ToastContext';
 import { UploadPanel } from '../components/UploadPanel';
 import { IngestSources } from '../components/IngestSources';
 import { SampleFiles } from '../components/SampleFiles';
@@ -13,6 +13,7 @@ export default function DemoProjectPage() {
   const { items: artifacts, loading: artifactsLoading, refresh: refreshArtifacts } = useArtifacts(pid || 'demo');
   const [isUploading, setIsUploading] = useState(false);
   const [pipelineStatus, setPipelineStatus] = useState<string>('idle');
+  const { toast } = useToast();
 
   // Track demo-specific state
   const [demoFilesCount, setDemoFilesCount] = useState(0);
@@ -29,7 +30,7 @@ export default function DemoProjectPage() {
   const handleResetDemo = async () => {
     try {
       await resetDemo();
-      toast.success('Demo reset. Samples are ready.');
+      toast('Demo reset. Samples are ready.', { type: 'success' });
       
       // Clear demo localStorage
       localStorage.removeItem('estimai.demo.banner.dismissed');
@@ -45,7 +46,7 @@ export default function DemoProjectPage() {
       // Force page reload to reset all components
       window.location.reload();
     } catch (error) {
-      toast.error('Failed to reset demo');
+      toast('Failed to reset demo', { type: 'error' });
       console.error('Demo reset failed:', error);
     }
   };
@@ -119,7 +120,7 @@ export default function DemoProjectPage() {
       />
 
       {/* Ingest Sources */}
-      <IngestSources pid={pid} onComplete={refreshArtifacts} />
+      <IngestSources pid={pid} />
 
       {/* Artifacts List */}
       <div>
@@ -131,7 +132,7 @@ export default function DemoProjectPage() {
             {artifacts.map((artifact, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <span className="text-gray-900">{artifact.name || `Artifact ${index + 1}`}</span>
+                  <span className="text-gray-900">{artifact.path || `Artifact ${index + 1}`}</span>
                   {artifact.type && (
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                       {artifact.type}
