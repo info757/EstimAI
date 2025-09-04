@@ -102,6 +102,11 @@ PROJECTS_DIR = (APP_DIR / "data" / "projects").resolve()
 PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/projects", StaticFiles(directory=str(PROJECTS_DIR)), name="projects")
 
+# /static/samples -> backend/static/samples (sample files)
+SAMPLES_DIR = (APP_DIR.parent / "static" / "samples").resolve()
+SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static/samples", StaticFiles(directory=str(SAMPLES_DIR)), name="samples")
+
 # --- API routes under /api ---
 app.include_router(r, prefix="/api")
 
@@ -126,6 +131,7 @@ async def startup_event():
     
     logger.info(f"🚀 EstimAI backend starting up...")
     logger.info(f"📁 /artifacts mounted at: {ARTIFACTS_DIR.resolve()}")
+    logger.info(f"📁 /static/samples mounted at: {SAMPLES_DIR.resolve()}")
     logger.info(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
     logger.info(f"📝 Log level: {settings.LOG_LEVEL}")
     logger.info(f"🔖 Version: {app_version()}")
