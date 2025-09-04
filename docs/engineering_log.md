@@ -14,6 +14,35 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 
 ## Entries
 
+### 2025-09-03 — Mini-PR C: Demo Seed Utility
+
+**Context:** Add convenience utility for seeding demo projects with sample files for immediate testing.
+
+**Change:** 
+- Created `scripts/demo_seed.py` utility for copying sample files to demo project ingest directories
+- Script copies files from `backend/static/samples/` to `ARTIFACT_DIR/{DEMO_PID}/ingest/raw/` with timestamped names
+- Automatically creates/updates `ingest_manifest.json` with proper metadata (status="indexed", source_type="upload")
+- Calculates file sizes and content hashes for accurate manifest entries
+- Added `demo-seed` target to Makefile for easy execution
+- Updated ENGINEERING_LOG.md to document the utility's purpose and usage
+
+**Endpoints touched:** none (utility script only)
+
+**Artifacts shape/paths:** 
+- Creates `ARTIFACT_DIR/{DEMO_PID}/ingest/raw/` directory structure
+- Copies sample files with timestamped names (e.g., `20250903_143022_01_sample.pdf`)
+- Updates `ARTIFACT_DIR/{DEMO_PID}/ingest/ingest_manifest.json` with new entries
+- Manifest entries include: filename, content_hash, size, indexed_at, source_type="upload", status="indexed"
+
+**Risks/Notes:** 
+- Utility is for local/demo convenience only, not for production use
+- Uses environment variable `DEMO_PID` (defaults to "demo") for project identification
+- Handles duplicate files gracefully by checking content hashes before adding to manifest
+- Provides clear console output with emojis for easy monitoring
+- Integrates with existing ingest pipeline and manifest system
+
+---
+
 ### 2025-09-03 — PR 19: Multi-format Parsing + OCR Stubs
 
 **Context:** Added multi-format parsing pipeline with normalized doc model, OCR optional.

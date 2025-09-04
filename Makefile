@@ -30,6 +30,10 @@ clean: ; find . -type d -name "__pycache__" -exec rm -rf {} + ; find . -type d -
 db-up: ; docker compose up -d db
 db-down: ; docker compose down
 
+# Demo utilities
+demo-seed:
+	python scripts/demo_seed.py
+
 # Docker commands for PR 12
 docker-build-backend:
 	docker build -f Dockerfile.backend \
