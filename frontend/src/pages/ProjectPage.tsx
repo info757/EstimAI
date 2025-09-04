@@ -8,6 +8,7 @@ import {
 } from '../api/client'
 import { UploadPanel } from '../components/UploadPanel'
 import { IngestSources } from '../components/IngestSources'
+import { SampleFiles } from '../components/SampleFiles'
 import type { JobResponse } from '../types/api'
 import Toast from '../components/Toast'
 import { useArtifacts } from '../hooks/useArtifacts'
@@ -170,6 +171,9 @@ export default function ProjectPage() {
           {error}
         </div>
       )}
+
+      {/* Sample Files Section */}
+      <SampleFiles pid={pid} onComplete={refreshArtifacts} />
 
       {/* Upload Section */}
       <UploadPanel 
