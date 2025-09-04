@@ -136,12 +136,26 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ pid, onComplete, onUpl
       // Mark all files as error
       setSelectedFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
       
-      // Extract status code from error message if available
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const statusMatch = errorMessage.match(/ingest failed: (\d+)/);
-      const statusCode = statusMatch ? statusMatch[1] : 'unknown';
+      // Handle specific HTTP error statuses
+      let errorMessage = 'Upload failed. Please try another file.';
       
-      toast(`Upload failed (${statusCode}): ${errorMessage}`, { type: 'error' });
+      if (error instanceof Error) {
+        const errorText = error.message;
+        
+        // Check for specific status codes in error message
+        if (errorText.includes('413')) {
+          errorMessage = 'File too large (limit 25 MB).';
+        } else if (errorText.includes('415')) {
+          errorMessage = 'Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF.';
+        } else if (errorText.includes('ingest failed:')) {
+          // Extract status code from "ingest failed: <status>" format
+          const statusMatch = errorText.match(/ingest failed: (\d+)/);
+          const statusCode = statusMatch ? statusMatch[1] : 'unknown';
+          errorMessage = `Upload failed (HTTP ${statusCode}). Please try another file.`;
+        }
+      }
+      
+      toast(errorMessage, { type: 'error' });
       setIsUploading(false);
     }
   }, [selectedFiles, isUploading, pid, toast, onComplete, clearSelection]);
@@ -203,6 +217,9 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({ pid, onComplete, onUpl
           </p>
           <p className="text-sm text-gray-500">
             Accepted formats: {ACCEPTED_TYPES}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Max 25 MB. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF.
           </p>
         </div>
         
