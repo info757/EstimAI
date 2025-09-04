@@ -1,5 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { isAuthenticated, getUser, logout } from './state/auth'
+import DemoBanner from './components/DemoBanner'
 
 export default function RootLayout() {
   const navigate = useNavigate();
@@ -36,6 +37,10 @@ export default function RootLayout() {
           )}
         </nav>
       </header>
+      
+      {/* Demo Mode Banner */}
+      <DemoBanner />
+      
       <main className="max-w-5xl mx-auto p-6">
         <Outlet />
       </main>

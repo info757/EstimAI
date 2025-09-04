@@ -207,6 +207,7 @@ async def health_check():
 async def startup_event():
     """Log startup configuration."""
     from .core.runtime import app_version
+    from .core.paths import ensure_demo_project_structure
     
     logger.info(f"🚀 EstimAI backend starting up...")
     logger.info(f"📁 /artifacts mounted at: {ARTIFACTS_DIR.resolve()}")
@@ -215,9 +216,12 @@ async def startup_event():
     logger.info(f"📝 Log level: {settings.LOG_LEVEL}")
     logger.info(f"🔖 Version: {app_version()}")
     
-    # Log demo mode status
+    # Log demo mode status and bootstrap demo project structure
     if settings.DEMO_PUBLIC:
         logger.info(f"🎭 Demo mode ENABLED - Project '{settings.DEMO_PROJECT_ID}' is public (rate limit: {settings.DEMO_RATE_LIMIT_PER_MIN}/min)")
+        logger.info(f"📁 Bootstrapping demo project structure at: {ARTIFACTS_DIR.resolve() / settings.DEMO_PROJECT_ID}")
+        ensure_demo_project_structure(settings.DEMO_PROJECT_ID)
+        logger.info(f"✅ Demo project structure ready")
     else:
         logger.info(f"🔒 Demo mode DISABLED - All projects require authentication")
     

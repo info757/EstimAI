@@ -41,6 +41,40 @@ Use this log to capture decisions, changes, and path contracts. Append new entri
 - Provides clear console output with emojis for easy monitoring
 - Integrates with existing ingest pipeline and manifest system
 
+### 2025-09-03 — PR 24: Demo Mode Bootstrapping
+
+**Context:** Ensure demo project directory structure exists at startup when demo mode is enabled, providing a ready-to-use demo environment.
+
+**Change:** 
+- Added `ensure_demo_project_structure(demo_pid: str)` function to `backend/app/core/paths.py`
+- Function creates complete demo project directory hierarchy: `ingest/raw`, `ingest/parsed`, `bid`, `docs`
+- Creates `.keep` files in each directory to ensure persistence in git-ignored volumes
+- Initializes empty `ingest_manifest.json` if it doesn't exist
+- Updated `startup_event()` in `backend/app/main.py` to call bootstrap function when `DEMO_PUBLIC=true`
+- Added detailed logging for demo structure creation process
+
+**Endpoints touched:** none (startup hook only)
+
+**Artifacts shape/paths:** 
+- Creates `ARTIFACT_DIR/{DEMO_PROJECT_ID}/` with complete subdirectory structure
+- Ensures `ingest/raw/`, `ingest/parsed/`, `bid/`, `docs/` directories exist
+- Places `.keep` files in each directory for volume persistence
+- Initializes `ingest_manifest.json` with empty items array
+
+**Risks/Notes:** 
+- Bootstrapping only occurs when `DEMO_PUBLIC=true` environment variable is set
+- Creates minimal structure without sample content (content population handled by separate seed utility)
+- `.keep` files ensure directories persist even when mounted in Docker volumes
+- Startup logging provides visibility into demo environment preparation
+- Integrates seamlessly with existing demo mode middleware and rate limiting
+
+**Acceptance Checks:**
+- [ ] With `DEMO_PUBLIC=true`, visiting `/projects/demo` works without login.
+- [ ] Upload → Run Full Pipeline → Download PDF all work for `/projects/demo` unauthenticated.
+- [ ] `GET /artifacts/demo/*` is accessible without auth; other projects' artifacts remain protected.
+- [ ] Rate limit kicks in on demo routes after `DEMO_RATE_LIMIT_PER_MIN` requests per minute, returning 429 with a friendly message.
+- [ ] With `DEMO_PUBLIC=false`, behavior reverts: all project routes require auth.
+
 ---
 
 ### 2025-09-03 — PR 19: Multi-format Parsing + OCR Stubs

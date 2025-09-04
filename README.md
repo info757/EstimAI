@@ -376,6 +376,12 @@ DEMO_RATE_LIMIT_PER_MIN=60
 - Rate limiting prevents abuse of public demo access
 - IP detection handles proxy/load balancer scenarios
 
+**Frontend Integration:**
+- When demo mode is enabled, the home page displays an "Open Demo Project" link
+- Demo project pages are accessible without authentication when `VITE_DEMO_PUBLIC=true`
+- All other project pages remain protected behind authentication
+- Demo project link navigates to `/projects/{DEMO_PROJECT_ID}` (default: `/projects/demo`)
+
 ## Troubleshooting
 
 **curl hangs in terminal**
