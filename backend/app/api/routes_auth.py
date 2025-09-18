@@ -29,10 +29,6 @@ async def login(request: LoginRequest):
     Authenticate a user with username and password.
     
     Returns a JWT token for authenticated requests.
-    
-    **Demo Credentials:**
-    - Username: `demo@example.com`
-    - Password: `demo123`
     """
     # Authenticate user
     user = authenticate_user(request.username, request.password)

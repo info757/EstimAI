@@ -1,11 +1,10 @@
 # backend/app/api/routes.py
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends  # ← add File
+from fastapi.responses import FileResponse
 from typing import List
 from ..services import orchestrator
-from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput
-from app.services import orchestrator  # you already have this pattern
-from app.models.schemas import EstimateOutput  # add if not present
-from app.services.bid import build_bid_pdf
+from ..models.schemas import TakeoffOutput, ScopeOutput, LevelingResult, RiskOutput, EstimateOutput
+from ..services.bid import build_bid_pdf
 from ..core.auth import get_current_user
 from pathlib import Path
 from .routes_projects import router as projects_router
@@ -166,132 +165,47 @@ async def run_estimate(pid: str, current_user: dict = Depends(get_current_user))
     est = await orchestrator.run_estimate(pid)
     return est
 
+@r.get("/projects/{pid}/view/{filename}", tags=["projects"])
+async def view_file(pid: str, filename: str, current_user: dict = Depends(get_current_user)):
+    """
+    View a file from the project artifacts directory.
+    Returns the file with proper headers for browser viewing.
+    """
+    artifact_dir = Path(os.getenv("ARTIFACT_DIR", str(Path(__file__).resolve().parent.parent / "artifacts")))
+    file_path = artifact_dir / pid / "docs" / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Determine media type based on file extension
+    media_type = "application/octet-stream"
+    if filename.lower().endswith('.pdf'):
+        media_type = "application/pdf"
+    elif filename.lower().endswith('.docx'):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif filename.lower().endswith('.xlsx'):
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type=media_type
+    )
+
 @r.post("/projects/{pid}/bid", tags=["projects"])
 @r.get("/projects/{pid}/bid", tags=["projects"])
 async def create_bid(pid: str, current_user: dict = Depends(get_current_user)):
     """
     Generate a bid PDF from project data.
-    Returns browser-openable path to the generated PDF.
+    Returns the PDF file directly.
     """
     pdf_abs = build_bid_pdf(pid)                 # e.g. /.../backend/artifacts/<pid>/bid/xxxx.pdf
     name = Path(pdf_abs).name
-    pdf_rel = f"artifacts/{pid}/bid/{name}"      # ← URL path under /artifacts mount
-    return {"project_id": pid, "pdf_path": pdf_rel}
-
-
-@r.get("/samples", tags=["samples"])
-async def list_samples():
-    """
-    List available sample files.
-    Returns a list of sample files with metadata.
-    """
-    from ..scripts.seed_demo import ensure_samples_directory
-    from pathlib import Path
-    import json
     
-    try:
-        # Ensure samples directory exists
-        samples_dir = ensure_samples_directory()
-        index_path = samples_dir / "index.json"
-        
-        # If index.json doesn't exist, trigger seeding
-        if not index_path.exists():
-            from ..scripts.seed_demo import run as seed_demo
-            seed_demo()
-        
-        # Load and return the index
-        with open(index_path, 'r') as f:
-            samples = json.load(f)
-        
-        return {"samples": samples}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load samples: {e}")
+    # Return the PDF file directly
+    return FileResponse(
+        path=pdf_abs,
+        filename=name,
+        media_type='application/pdf'
+    )
 
-
-@r.get("/samples/{slug}", tags=["samples"])
-async def get_sample(slug: str):
-    """
-    Get a sample file by slug.
-    Returns the file content with appropriate MIME type.
-    """
-    from ..scripts.seed_demo import ensure_samples_directory
-    from pathlib import Path
-    import json
-    from fastapi.responses import FileResponse
-    
-    try:
-        # Ensure samples directory exists
-        samples_dir = ensure_samples_directory()
-        index_path = samples_dir / "index.json"
-        
-        # If index.json doesn't exist, trigger seeding
-        if not index_path.exists():
-            from ..scripts.seed_demo import run as seed_demo
-            seed_demo()
-        
-        # Load the index to find the file
-        with open(index_path, 'r') as f:
-            samples = json.load(f)
-        
-        # Find the sample by slug
-        sample = None
-        for s in samples:
-            if s["slug"] == slug:
-                sample = s
-                break
-        
-        if not sample:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Sample '{slug}' not found. Available samples: {[s['slug'] for s in samples]}"
-            )
-        
-        # Return the file
-        file_path = samples_dir / sample["filename"]
-        if not file_path.exists():
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Sample file '{sample['filename']}' not found on disk"
-            )
-        
-        return FileResponse(
-            path=str(file_path),
-            media_type=sample["mime"],
-            filename=sample["filename"]
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve sample: {e}")
-
-
-@r.post("/demo/reset", tags=["demo"])
-async def reset_demo():
-    """
-    Reset demo environment (only available when DEMO_PUBLIC=true).
-    Clears demo artifacts and reseeds samples.
-    """
-    from ..core.config import get_settings
-    from ..scripts.reset_demo import run as reset_demo_run
-    
-    settings = get_settings()
-    
-    # Only allow if demo mode is enabled
-    if not settings.DEMO_PUBLIC:
-        raise HTTPException(
-            status_code=403, 
-            detail="Demo reset only available when DEMO_PUBLIC=true"
-        )
-    
-    try:
-        # Run the reset logic
-        reset_demo_run()
-        return {"ok": True}
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Demo reset failed: {e}"
-        )

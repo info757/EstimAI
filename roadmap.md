@@ -192,46 +192,56 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 - [x ] Tests confirm job lifecycle in DB.  
 
 ---
+ POST /api/login returns a bearer token for demo user.
 
+ /api/projects/* endpoints reject unauthenticated requests (401).
+
+ Frontend has /login page; successful login stores token and allows access to project pages.
+
+ API client sends Authorization: Bearer <token> for authenticated calls.
+
+ .env.example includes JWT_SECRET; README documents usage.
+
+ (Optional) auth tests pass locally & in CI.
 
 ---
 
 ## PR 16 — Frontend Upload UI
 **Goal**: User can upload documents via UI.  
 **Acceptance Criteria**
-- [ ] Drag-drop uploader on `/projects/:pid`.  
-- [ ] Progress bar, multiple files, type validation (PDF, CSV, XLSX, DOCX).  
-- [ ] Calls `POST /ingest` and shows ingest results.  
-- [ ] Artifacts update automatically.  
+- [x] Drag-drop uploader on `/projects/:pid`.  
+- [x ] Progress bar, multiple files, type validation (PDF, CSV, XLSX, DOCX).  
+- [x ] Calls `POST /ingest` and shows ingest results.  
+- [x ] Artifacts update automatically.  
 
 ---
 
 ## PR 17 — Ingestion Worker (Async)
 **Goal**: Make ingestion job-based.  
 **Acceptance Criteria**
-- [ ] `POST /pipeline_async` pattern applied to ingestion.  
-- [ ] Large files chunked/streamed.  
-- [ ] Status tracked in jobs table.  
-- [ ] Ingestion artifacts saved under `artifacts/{pid}/ingest/`.  
+- [x ] `POST /pipeline_async` pattern applied to ingestion.  
+- [x ] Large files chunked/streamed.  
+- [x ] Status tracked in jobs table.  
+- [x ] Ingestion artifacts saved under `artifacts/{pid}/ingest/`.  
 
 ---
 
 ## PR 18 — Re-ingest & Manifest
 **Goal**: Track ingested files and prevent duplicates.  
 **Acceptance Criteria**
-- [ ] `ingest_manifest.json` per project with `{ filename, content_hash, indexed_at }`.  
-- [ ] Duplicate uploads skipped unless hash changes.  
-- [ ] New endpoint `GET /api/projects/{pid}/ingest` lists ingested sources.  
+- [x ] `ingest_manifest.json` per project with `{ filename, content_hash, indexed_at }`.  
+- [x ] Duplicate uploads skipped unless hash changes.  
+- [x ] New endpoint `GET /api/projects/{pid}/ingest` lists ingested sources.  
 
 ---
 
 ## PR 19 — Content Types & OCR
 **Goal**: Expand ingestion beyond PDFs.  
 **Acceptance Criteria**
-- [ ] Support parsing DOCX, XLSX, CSV.  
-- [ ] OCR images into text (if OCR lib available).  
-- [ ] Normalize outputs into a consistent doc model.  
-- [ ] Store parsed JSON next to raw file.  
+- [x ] Support parsing DOCX, XLSX, CSV.  
+- [x ] OCR images into text (if OCR lib available).  
+- [x ] Normalize outputs into a consistent doc model.  
+- [x ] Store parsed JSON next to raw file.  
 
 ---
 
@@ -241,7 +251,16 @@ This file tracks the sequence of PRs to build the EstimAI MVP and post-MVP (HITL
 - [ ] Add support for S3 or cloud storage as ingestion source.  
 - [ ] Optional connectors for SharePoint/Drive (stubbed initially).  
 - [ ] “Sync now” endpoint + async job.  
-- [ ] Artifacts + manifest updated with external sources.  
+- [ ] Artifacts + manifest updated with external sources. 
+
+### Change: Defer PR 20 (External Sources)
+- Rationale: Not needed for the first shareable demo; increases setup and risk.
+- Move PR 20 to “Pilot Readiness” after the demo milestone.
+- Demo Milestone now includes:
+  - PR 21 — Upload Guardrails & Friendly Errors
+  - PR 22 — Sample Files Gallery
+  - (Optional) PR 24 — Demo Mode
+
 
 ---
 

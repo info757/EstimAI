@@ -30,11 +30,35 @@ pip install -r requirements.txt
 cd frontend && npm install && cd ..
 ```
 
-### Run
+### Run the App
 ```bash
+# Start backend (in one terminal)
 make dev    # Backend at http://localhost:8000
+
+# Start frontend (in another terminal)  
 make web    # Frontend at http://localhost:5173
 ```
+
+**Complete Workflow:**
+1. **Login**: Open http://localhost:5173 and sign in with admin credentials:
+   - Username: `admin@example.com`
+   - Password: `admin123`
+
+2. **Create Project**: Navigate to Upload page and create a new project by uploading documents
+
+3. **Review Data**: Navigate to `/projects/{project_id}/review` to:
+   - Review and edit takeoff quantities
+   - Adjust unit costs and markups
+   - See real-time total calculations
+
+4. **Continue Pipeline**: Click "Continue Pipeline" to:
+   - Run the full estimation pipeline
+   - Monitor job progress in real-time
+   - See completion status and any errors
+
+5. **Download Bid PDF**: Click "Generate Bid PDF" to:
+   - Download the final bid document
+   - File will be saved as `bid-{project_id}.pdf`
 
 ### Test
 ```bash
@@ -199,14 +223,14 @@ make lint   # Lint code
 make clean  # Clear caches
 ```
 
-## Auth (demo scaffold)
+## Authentication
 
 **Authentication Flow:**
 - **Login**: `POST /api/auth/login` with:
   ```json
   {
-    "username": "demo@example.com",
-    "password": "demo123"
+    "username": "admin@example.com",
+    "password": "admin123"
   }
   ```
 - **Response**: `{ "token": "<jwt>", "token_type": "bearer", "user": {...} }`
@@ -214,11 +238,11 @@ make clean  # Clear caches
 - **Protection**: All `/api/projects/*` endpoints require a valid token
 - **Frontend**: Login page at `/login`, protected routes redirect to login if unauthenticated
 
-**Demo Credentials:**
-- Username: `demo@example.com`
-- Password: `demo123`
+**Default Admin Credentials:**
+- Username: `admin@example.com`
+- Password: `admin123`
 
-**⚠️ NOTE:** This is demo-only scaffolding; replace with real user store and authentication system in production.
+**⚠️ NOTE:** This is development scaffolding; replace with real user store and authentication system in production.
 
 ## Multi-format Parsing (PR 19)
 
@@ -248,10 +272,6 @@ OCR_LANG=eng
 ALLOWED_EXTS=.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff
 MAX_UPLOAD_SIZE_MB=25
 
-# Demo Mode (PR 24)
-DEMO_PUBLIC=false
-DEMO_PROJECT_ID=demo
-DEMO_RATE_LIMIT_PER_MIN=60
 ```
 
 **Note:** These variables should also be added to `.env.example` for team reference. Note that `.env.example` is blocked by global ignore, so add these manually.
@@ -289,34 +309,7 @@ All parsed documents return a consistent structure:
 - `pillow>=10.4.0` - Image processing
 - `pytesseract>=0.3.13` - OCR (optional)
 
-## Samples (Mini-PR A)
 
-**Quick Start with Sample Files:**
-- Place small demo files in `backend/static/samples/` (PDF, DOCX, XLSX, CSV, PNG/JPG)
-- The UI offers "Use sample" buttons that upload via the normal ingest route
-- Sample files are served from `/static/samples/` endpoint and processed through the full ingest pipeline
-- Perfect for testing document parsing, OCR, and the complete ingest workflow
-
-**Sample File Setup:**
-```bash
-# Create sample files directory (if not exists)
-mkdir -p backend/static/samples
-
-# Add sample files (example names)
-backend/static/samples/
-├── sample.pdf      # Test PDF parsing
-├── sample.docx     # Test DOCX parsing  
-├── sample.xlsx     # Test XLSX parsing
-├── sample.csv      # Test CSV parsing
-└── sample.jpg      # Test image/OCR processing
-```
-
-**Usage:**
-1. Navigate to any project page
-2. Look for "No file handy? Try a sample" section above the upload panel
-3. Click any sample file button to automatically download and ingest
-4. Monitor progress with job polling and toast notifications
-5. View results in the artifacts list after successful ingestion
 
 ## Upload Limits (Mini-PR B)
 
@@ -344,73 +337,42 @@ MAX_UPLOAD_SIZE_MB=25
 - **415 Unsupported Media Type**: "Unsupported file type. Allowed: PDF, DOCX, XLSX, CSV, PNG/JPG/TIFF."
 - **413 Payload Too Large**: "File too large (limit 25 MB)."
 
-## Demo Mode (PR 24)
 
-**Public Access for Demo Projects:**
-- **DEMO_PUBLIC=true**: Exposes only the demo project without login requirement
-- **DEMO_PROJECT_ID**: Configurable project ID for public access (default: "demo")
-- **Rate Limiting**: Per-IP rate limit applies to demo routes only
-- **Authentication**: All other projects remain protected behind authentication
-
-**Demo Mode Features:**
-- **Unauthenticated Access**: Users can access `/api/projects/{DEMO_PROJECT_ID}/*` without login
-- **Static Files**: Public access to `/artifacts/{DEMO_PROJECT_ID}/*` for demo artifacts
-- **Rate Limiting**: Configurable per-IP limit (default: 60 requests per minute)
-- **Soft Limit**: Returns HTTP 429 with message when rate limit exceeded
-
-**Configuration:**
-```bash
-# Enable demo mode
-DEMO_PUBLIC=true
-
-# Set demo project ID
-DEMO_PROJECT_ID=demo
-
-# Configure rate limit (requests per minute per IP)
-DEMO_RATE_LIMIT_PER_MIN=60
-```
-
-**Security Notes:**
-- Demo mode only affects the specified demo project
-- All other projects and endpoints remain fully protected
-- Rate limiting prevents abuse of public demo access
-- IP detection handles proxy/load balancer scenarios
-
-**Frontend Integration:**
-- When demo mode is enabled, the home page displays an "Open Demo Project" link
-- Demo project pages are accessible without authentication when `VITE_DEMO_PUBLIC=true`
-- All other project pages remain protected behind authentication
-- Demo project link navigates to `/projects/{DEMO_PROJECT_ID}` (default: `/projects/demo`)
-
-## Run the Demo
+## Standard Authenticated Workflow
 
 **Quick Start:**
-1. Copy `.env.example` → `.env` and keep `DEMO_PUBLIC=true`
-2. `make demo-seed` - Generate sample files
-3. In one terminal: `make dev` (backend)
-4. In another terminal: `make web` (frontend)
-5. Open http://localhost:5173/projects/demo or `make demo-open`
+1. Copy `.env.example` → `.env` and set `JWT_SECRET` to a secure value
+2. In one terminal: `make dev` (backend)
+3. In another terminal: `make web` (frontend)
+4. Open http://localhost:5173 and sign in with admin credentials
+5. Create a project → Upload files → Review data → Continue Pipeline → Download Bid PDF
 
-**Environment Variables for Demo:**
+**Detailed Workflow:**
+- **Upload**: Create project and upload construction documents (PDF, DOCX, XLSX, etc.)
+- **Review**: Navigate to `/projects/{project_id}/review` to edit takeoff quantities, unit costs, and markups
+- **Pipeline**: Run the full estimation pipeline with real-time progress monitoring
+- **Bid**: Generate and download the final bid PDF document
+
+**Environment Variables:**
 ```bash
-# Demo Mode
-DEMO_PUBLIC=true
-DEMO_PROJECT_ID=demo
-DEMO_RATE_LIMIT_PER_MIN=60
+# Required: JWT authentication secret
+JWT_SECRET=your-secure-jwt-secret-here
 
-# Frontend
-VITE_DEMO_PUBLIC=true
-VITE_DEMO_PROJECT_ID=demo
+# Required: Backend artifact directory (absolute path)
+ARTIFACT_DIR=/ABSOLUTE/PATH/TO/estimai/backend/artifacts
+
+# Frontend API configuration
 VITE_API_BASE=http://localhost:8000/api
 VITE_FILE_BASE=http://localhost:8000
 
-# File Limits
-MAX_FILE_MB=25
-MAX_FILES_PER_BATCH=10
-ALLOWED_MIME=application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain,image/png,image/jpeg
+# Upload guardrails
+ALLOWED_EXTS=.pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff
+MAX_UPLOAD_SIZE_MB=25
 ```
 
-**If anything gets weird:** `make demo-reset` - Clears demo artifacts and reseeds
+**Default Admin Credentials:**
+- Username: `admin@example.com`
+- Password: `admin123`
 
 ## Troubleshooting
 
@@ -439,7 +401,7 @@ ALLOWED_MIME=application/pdf,application/vnd.openxmlformats-officedocument.wordp
 - Ensure `JWT_SECRET` is set in environment variables
 - Check that token is being sent in Authorization header
 - Verify token hasn't expired (default: 60 minutes)
-- Use demo credentials for testing: `demo@example.com` / `demo123`
+- Use admin credentials for testing: `admin@example.com` / `admin123`
 - If getting 401/403 errors, try logging in again to get a fresh token
 
 **OCR Issues (PR 19+)**

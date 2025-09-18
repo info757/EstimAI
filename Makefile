@@ -30,26 +30,9 @@ clean: ; find . -type d -name "__pycache__" -exec rm -rf {} + ; find . -type d -
 db-up: ; docker compose up -d db
 db-down: ; docker compose down
 
-# Demo utilities
-demo: 
-	@echo "🚀 Starting EstimAI Demo..."
-	@echo "📋 Quick Demo Instructions:"
-	@echo "  1. Copy .env.example → .env (keep DEMO_PUBLIC=true)"
-	@echo "  2. In one terminal: make dev"
-	@echo "  3. In another terminal: make web"
-	@echo "  4. Open http://localhost:5173/projects/demo"
-	@echo ""
-	@echo "🔄 Starting services in background..."
-	@make dev & make web
-
-demo-seed:
-	cd backend && python -m app.scripts.seed_demo
-
-demo-reset:
-	cd backend && python -m app.scripts.reset_demo
-
-demo-open:
-	@echo "🌐 Open your browser to: http://localhost:5173/projects/demo"
+# Database cleanup utilities (operator-only: cleanup historical demo data)
+clean-demo-records:
+	cd backend && python -m app.scripts.cleanup_demo_records
 
 # Docker commands for PR 12
 docker-build-backend:

@@ -79,79 +79,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class DemoModeMiddleware(BaseHTTPMiddleware):
-    """ASGI middleware for demo mode rate limiting and access control."""
-    
-    def __init__(self, app, settings):
-        super().__init__(app)
-        self.settings = settings
-        self.demo_project_id = settings.DEMO_PROJECT_ID
-        self.demo_public = settings.DEMO_PUBLIC
-        self.rate_limit = settings.DEMO_RATE_LIMIT_PER_MIN
-        self.ip_counters = {}  # {ip: [(timestamp, count), ...]}
-    
-    def _is_demo_route(self, path: str) -> bool:
-        """Check if the request is for a demo project route."""
-        return (self.demo_public and 
-                (path.startswith(f'/api/projects/{self.demo_project_id}/') or
-                 path.startswith(f'/artifacts/{self.demo_project_id}/')))
-    
-    def _get_client_ip(self, request: Request) -> str:
-        """Get client IP address, handling proxies."""
-        # Check for forwarded headers first
-        forwarded_for = request.headers.get('x-forwarded-for')
-        if forwarded_for:
-            return forwarded_for.split(',')[0].strip()
-        
-        # Fall back to direct connection
-        return request.client.host if request.client else 'unknown'
-    
-    def _check_rate_limit(self, ip: str) -> bool:
-        """Check if IP is within rate limit for demo routes."""
-        now = time.time()
-        window_start = now - 60  # 1 minute sliding window
-        
-        # Clean old entries
-        if ip in self.ip_counters:
-            self.ip_counters[ip] = [
-                (ts, count) for ts, count in self.ip_counters[ip] 
-                if ts > window_start
-            ]
-        
-        # Count requests in current window
-        current_count = sum(count for _, count in self.ip_counters.get(ip, []))
-        
-        # Add current request
-        if ip not in self.ip_counters:
-            self.ip_counters[ip] = []
-        self.ip_counters[ip].append((now, 1))
-        
-        return current_count < self.rate_limit
-    
-    async def dispatch(self, request: Request, call_next):
-        path = str(request.url.path)
-        
-        # Only apply demo mode logic to demo routes
-        if self._is_demo_route(path):
-            client_ip = self._get_client_ip(request)
-            
-            # Check rate limit
-            if not self._check_rate_limit(client_ip):
-                from fastapi import HTTPException
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Demo rate limit exceeded ({self.rate_limit} requests per minute). Please wait a minute."
-                )
-            
-            # Log demo access
-            logger.info("Demo mode access", extra={
-                'path': path,
-                'client_ip': client_ip,
-                'demo_project': self.demo_project_id
-            })
-        
-        # Continue with normal request processing
-        return await call_next(request)
 
 
 app = FastAPI(title="EstimAI")
@@ -166,9 +93,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add demo mode middleware if enabled
-if settings.DEMO_PUBLIC:
-    app.add_middleware(DemoModeMiddleware, settings=settings)
 
 # --- Static mounts ---
 # /artifacts -> artifacts directory from settings
@@ -181,10 +105,6 @@ PROJECTS_DIR = (APP_DIR / "data" / "projects").resolve()
 PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/projects", StaticFiles(directory=str(PROJECTS_DIR)), name="projects")
 
-# /static/samples -> backend/static/samples (sample files)
-SAMPLES_DIR = (APP_DIR.parent / "static" / "samples").resolve()
-SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static/samples", StaticFiles(directory=str(SAMPLES_DIR)), name="samples")
 
 # --- API routes under /api ---
 app.include_router(r, prefix="/api")
@@ -207,29 +127,13 @@ async def health_check():
 async def startup_event():
     """Log startup configuration."""
     from .core.runtime import app_version
-    from .core.paths import ensure_demo_project_structure
     
     logger.info(f"🚀 EstimAI backend starting up...")
     logger.info(f"📁 /artifacts mounted at: {ARTIFACTS_DIR.resolve()}")
-    logger.info(f"📁 /static/samples mounted at: {SAMPLES_DIR.resolve()}")
     logger.info(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
     logger.info(f"📝 Log level: {settings.LOG_LEVEL}")
     logger.info(f"🔖 Version: {app_version()}")
     
-    # Log demo mode status and bootstrap demo project structure
-    if settings.DEMO_PUBLIC:
-        logger.info(f"🎭 Demo mode ENABLED - Project '{settings.DEMO_PROJECT_ID}' is public (rate limit: {settings.DEMO_RATE_LIMIT_PER_MIN}/min)")
-        logger.info(f"📁 Bootstrapping demo project structure at: {ARTIFACTS_DIR.resolve() / settings.DEMO_PROJECT_ID}")
-        ensure_demo_project_structure(settings.DEMO_PROJECT_ID)
-        logger.info(f"✅ Demo project structure ready")
-        
-        # Seed demo samples
-        logger.info(f"🌱 Seeding demo sample files...")
-        from .scripts.seed_demo import run as seed_demo
-        seed_demo()
-        logger.info(f"✅ Demo seed ensured")
-    else:
-        logger.info(f"🔒 Demo mode DISABLED - All projects require authentication")
     
     # Ensure overrides directory structure exists
     logger.info(f"📁 Ensuring overrides directory structure...")

@@ -15,7 +15,7 @@ export default function LoginPage() {
   // Get the intended destination from location state or query params
   const from = location.state?.from?.pathname || 
                new URLSearchParams(location.search).get('redirect') || 
-               '/projects/demo';
+               '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +109,7 @@ export default function LoginPage() {
 
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Demo credentials: <code className="bg-gray-100 px-1 rounded">demo@example.com</code> / <code className="bg-gray-100 px-1 rounded">demo123</code>
+              Admin credentials: <code className="bg-gray-100 px-1 rounded">admin@example.com</code> / <code className="bg-gray-100 px-1 rounded">admin123</code>
             </p>
           </div>
         </form>

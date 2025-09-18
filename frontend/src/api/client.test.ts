@@ -54,13 +54,13 @@ describe('API Integration', () => {
 
   it('can authenticate with login', async () => {
     const response = await login({
-      username: 'demo@example.com',
-      password: 'demo123'
+      username: 'admin@example.com',
+      password: 'admin123'
     });
     expect(response).toHaveProperty('token');
     expect(response).toHaveProperty('token_type', 'bearer');
     expect(response).toHaveProperty('user');
-    expect(response.user).toHaveProperty('email', 'demo@example.com');
+    expect(response.user).toHaveProperty('email', 'admin@example.com');
     expect(response.user).toHaveProperty('name');
   }, 10000);
 });

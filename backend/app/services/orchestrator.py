@@ -129,11 +129,37 @@ async def ingest(pid: str, file: UploadFile):
                 break
             out.write(chunk)
 
-    from app.workers.indexer import write_sheet_index  # import
-    from app.workers.spec_indexer import write_spec_index 
+    from ..workers.indexer import write_sheet_index  # import
+    from ..workers.spec_indexer import write_spec_index 
     
     idx_path = write_sheet_index(pid)
     spec_path = write_spec_index(pid)
+
+    # Also update the ingest manifest so the pipeline can find the files
+    from .ingest import load_ingest_manifest, save_ingest_manifest, update_manifest_item
+    import hashlib
+    
+    # Compute file hash for deduplication
+    content_hash = hashlib.sha256()
+    with open(target, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            content_hash.update(chunk)
+    final_hash = content_hash.hexdigest()
+    
+    # Load existing manifest and add this file
+    manifest = load_ingest_manifest(pid)
+    manifest_item = {
+        "filename": file.filename,
+        "content_hash": final_hash,
+        "size": target.stat().st_size,
+        "indexed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "source_type": "upload",
+        "status": "indexed",
+        "raw_path": str(target.relative_to(project_dir(pid))),
+        "parsed_path": None  # Not parsed by orchestrator system
+    }
+    update_manifest_item(manifest, manifest_item)
+    save_ingest_manifest(pid, manifest)
 
     # Log successful ingestion
     logger.info("File ingested successfully", extra={
@@ -266,16 +292,27 @@ async def run_estimate(pid: str) -> EstimateOutput:
     subtotal = 0.0
 
     for ti in takeoff_items:
-        desc = str(ti.get("description", "")).strip()
-        qty  = float(ti.get("qty", 0) or 0)
+        # Get assembly_id from takeoff item
+        assembly_id = str(ti.get("assembly_id", "")).strip()
+        qty = float(ti.get("qty", 0) or 0)
         unit = str(ti.get("unit", "")).strip()
-        unit_cost = float(costbook.get(desc, 0.0))
+        
+        # Look up cost from costbook using assembly_id
+        unit_cost = 0.0
+        description = assembly_id  # Default description
+        
+        if assembly_id and "costs" in costbook:
+            cost_entry = costbook["costs"].get(assembly_id)
+            if cost_entry:
+                unit_cost = float(cost_entry.get("unit_cost", 0.0))
+                description = cost_entry.get("description", assembly_id)
+        
         total = qty * unit_cost
         subtotal += total
 
         items.append(
             EstimateItem(
-                description=desc,
+                description=description,
                 qty=qty,
                 unit=unit,
                 unit_cost=unit_cost,

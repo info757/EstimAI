@@ -1,18 +1,18 @@
-# backend/app/services/parsers.py
 """
-Multi-format document parsing service with OCR support.
-Provides normalized document model for ingested files.
+Dependency-safe document parsers with graceful degradation.
+
+This module provides parsers for various document formats that gracefully
+handle missing dependencies by returning informative stub content.
 """
 
 import csv
-import json
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 import logging
+from pathlib import Path
+from typing import Dict, List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
-# Import parsing libraries (with fallbacks for optional dependencies)
+# Safe import checks with informative fallbacks
 try:
     from docx import Document
     DOCX_AVAILABLE = True
@@ -42,16 +42,30 @@ except ImportError:
     logger.warning("pytesseract not available - OCR will be stubbed")
 
 
-def detect_type(filename: str, mime: Optional[str] = None) -> str:
+def _safe_str(value: Any) -> str:
+    """Safely convert any value to string, handling None and empty values."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _mk_table(name: Optional[str], rows: List[List[str]]) -> Dict[str, Any]:
+    """Create a table structure with safe string handling."""
+    return {
+        "name": name,
+        "rows": [[_safe_str(cell) for cell in row] for row in rows]
+    }
+
+
+def detect_type(filename: str) -> str:
     """
     Detect document type based on filename extension.
     
     Args:
         filename: Name of the file
-        mime: Optional MIME type (currently unused, for future enhancement)
         
     Returns:
-        Document type string
+        Document type string: docx, xlsx, csv, image, pdf, or unknown
     """
     if not filename:
         return "unknown"
@@ -72,7 +86,7 @@ def detect_type(filename: str, mime: Optional[str] = None) -> str:
         return "unknown"
 
 
-def parse_docx(path: Path) -> Dict[str, Any]:
+def parse_docx(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parse DOCX file and extract text and tables.
     
@@ -80,13 +94,13 @@ def parse_docx(path: Path) -> Dict[str, Any]:
         path: Path to the DOCX file
         
     Returns:
-        Dictionary with 'text' and 'tables' content
+        Tuple of (text, tables) where tables is list of {name, rows}
     """
     if not DOCX_AVAILABLE:
-        return {
-            "text": "(python-docx not available)",
-            "tables": []
-        }
+        return (
+            "(docx parser unavailable: python-docx not installed)",
+            []
+        )
     
     try:
         doc = Document(path)
@@ -107,25 +121,16 @@ def parse_docx(path: Path) -> Dict[str, Any]:
                     row_data.append(cell.text.strip())
                 table_data.append(row_data)
             
-            tables.append({
-                "name": f"Table_{i+1}",
-                "rows": table_data
-            })
+            tables.append(_mk_table(f"Table_{i+1}", table_data))
         
-        return {
-            "text": "\n".join(text_parts),
-            "tables": tables
-        }
+        return "\n".join(text_parts), tables
         
     except Exception as e:
         logger.error(f"Failed to parse DOCX file {path}: {e}")
-        return {
-            "text": f"(Error parsing DOCX: {e})",
-            "tables": []
-        }
+        return f"(Error parsing DOCX: {e})", []
 
 
-def parse_xlsx(path: Path) -> Dict[str, Any]:
+def parse_xlsx(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parse XLSX file and extract text and tables from each sheet.
     
@@ -133,13 +138,13 @@ def parse_xlsx(path: Path) -> Dict[str, Any]:
         path: Path to the XLSX file
         
     Returns:
-        Dictionary with 'text' and 'tables' content
+        Tuple of (text, tables) where tables is list of {name, rows}
     """
     if not XLSX_AVAILABLE:
-        return {
-            "text": "(openpyxl not available)",
-            "tables": []
-        }
+        return (
+            "(xlsx parser unavailable: openpyxl not installed)",
+            []
+        )
     
     try:
         workbook = load_workbook(path, data_only=True)
@@ -159,29 +164,20 @@ def parse_xlsx(path: Path) -> Dict[str, Any]:
                     table_data.append(row_data)
             
             if table_data:
-                tables.append({
-                    "name": sheet_name,
-                    "rows": table_data
-                })
+                tables.append(_mk_table(sheet_name, table_data))
                 
                 # Add sheet content to text (flattened)
                 for row in table_data:
                     text_parts.extend([str(cell) for cell in row if str(cell).strip()])
         
-        return {
-            "text": " ".join(text_parts),
-            "tables": tables
-        }
+        return " ".join(text_parts), tables
         
     except Exception as e:
         logger.error(f"Failed to parse XLSX file {path}: {e}")
-        return {
-            "text": f"(Error parsing XLSX: {e})",
-            "tables": []
-        }
+        return f"(Error parsing XLSX: {e})", []
 
 
-def parse_csv(path: Path) -> Dict[str, Any]:
+def parse_csv(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parse CSV file and extract text and table data.
     
@@ -189,7 +185,7 @@ def parse_csv(path: Path) -> Dict[str, Any]:
         path: Path to the CSV file
         
     Returns:
-        Dictionary with 'text' and 'tables' content
+        Tuple of (text, tables) where tables is list of {name, rows}
     """
     try:
         with open(path, 'r', encoding='utf-8', errors='ignore') as file:
@@ -204,53 +200,35 @@ def parse_csv(path: Path) -> Dict[str, Any]:
         # Create table structure
         tables = []
         if rows:
-            tables.append({
-                "name": None,  # CSV doesn't have sheet names
-                "rows": rows
-            })
+            tables.append(_mk_table(Path(path).stem, rows))
         
-        return {
-            "text": " ".join(text_parts),
-            "tables": tables
-        }
+        return " ".join(text_parts), tables
         
     except Exception as e:
         logger.error(f"Failed to parse CSV file {path}: {e}")
-        return {
-            "text": f"(Error parsing CSV: {e})",
-            "tables": []
-        }
+        return f"(Error parsing CSV: {e})", []
 
 
-def parse_image_ocr(path: Path, lang: str = "eng", enabled: bool = False) -> Dict[str, Any]:
+def parse_image_ocr(path: Path, enabled: bool, lang: str) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Parse image file with OCR if enabled, otherwise return stub.
     
     Args:
         path: Path to the image file
-        lang: OCR language code
         enabled: Whether OCR is enabled
+        lang: OCR language code
         
     Returns:
-        Dictionary with 'text' and 'tables' content
+        Tuple of (text, tables) where tables is always empty for images
     """
     if not enabled:
-        return {
-            "text": "(OCR disabled)",
-            "tables": []
-        }
+        return "(OCR disabled)", []
     
     if not PIL_AVAILABLE:
-        return {
-            "text": "(Pillow not available for image processing)",
-            "tables": []
-        }
+        return "(OCR unavailable: PIL not installed)", []
     
     if not TESSERACT_AVAILABLE:
-        return {
-            "text": "(pytesseract not available for OCR)",
-            "tables": []
-        }
+        return "(OCR unavailable: pytesseract not installed)", []
     
     try:
         # Open image with PIL
@@ -262,20 +240,14 @@ def parse_image_ocr(path: Path, lang: str = "eng", enabled: bool = False) -> Dic
         # Clean up text
         text = text.strip()
         
-        return {
-            "text": text if text else "(No text detected)",
-            "tables": []  # OCR typically doesn't detect table structure
-        }
+        return text if text else "(No text detected)", []
         
     except Exception as e:
         logger.error(f"Failed to parse image with OCR {path}: {e}")
-        return {
-            "text": f"(Error processing image: {e})",
-            "tables": []
-        }
+        return f"(Error processing image: {e})", []
 
 
-def parse_pdf_stub(path: Path) -> Dict[str, Any]:
+def parse_pdf_stub(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
     """
     Stub PDF parser (placeholder for future PDF text extraction).
     
@@ -283,12 +255,22 @@ def parse_pdf_stub(path: Path) -> Dict[str, Any]:
         path: Path to the PDF file
         
     Returns:
-        Dictionary with stub content
+        Tuple of stub content and empty tables
     """
-    return {
-        "text": "(PDF text extraction not yet implemented)",
-        "tables": []
-    }
+    return "(pdf parsing stub — not yet implemented)", []
+
+
+def parse_unknown(path: Path) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    Parser for unknown file types.
+    
+    Args:
+        path: Path to the unknown file
+        
+    Returns:
+        Tuple of empty text and empty tables
+    """
+    return "", []
 
 
 def build_normalized(doc_type: str, meta: Dict[str, Any], text: str, tables: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -314,9 +296,44 @@ def build_normalized(doc_type: str, meta: Dict[str, Any], text: str, tables: Lis
     }
 
 
+def parse_to_normalized(path: Path, meta: Dict[str, Any], ocr_enabled: bool = False, ocr_lang: str = "eng") -> Dict[str, Any]:
+    """
+    Parse document to normalized format with auto-detection.
+    
+    Args:
+        path: Path to the document
+        meta: File metadata (filename, content_hash, size)
+        ocr_enabled: Whether OCR is enabled for images
+        ocr_lang: OCR language code
+        
+    Returns:
+        Normalized document model: { type, meta, content: { text, tables } }
+    """
+    # Auto-detect document type
+    doc_type = detect_type(path.name)
+    
+    # Parse based on type
+    if doc_type == "docx":
+        text, tables = parse_docx(path)
+    elif doc_type == "xlsx":
+        text, tables = parse_xlsx(path)
+    elif doc_type == "csv":
+        text, tables = parse_csv(path)
+    elif doc_type == "image":
+        text, tables = parse_image_ocr(path, ocr_enabled, ocr_lang)
+    elif doc_type == "pdf":
+        text, tables = parse_pdf_stub(path)
+    else:
+        text, tables = parse_unknown(path)
+    
+    # Return normalized model
+    return build_normalized(doc_type, meta, text, tables)
+
+
+# Legacy function names for backward compatibility
 def parse_document(path: Path, doc_type: str, ocr_enabled: bool = False, ocr_lang: str = "eng") -> Dict[str, Any]:
     """
-    Parse document based on type and return normalized model.
+    Legacy function for backward compatibility.
     
     Args:
         path: Path to the document
@@ -327,26 +344,11 @@ def parse_document(path: Path, doc_type: str, ocr_enabled: bool = False, ocr_lan
     Returns:
         Normalized document model
     """
-    # Extract content based on document type
-    if doc_type == "docx":
-        content = parse_docx(path)
-    elif doc_type == "xlsx":
-        content = parse_xlsx(path)
-    elif doc_type == "csv":
-        content = parse_csv(path)
-    elif doc_type == "image":
-        content = parse_image_ocr(path, ocr_lang, ocr_enabled)
-    elif doc_type == "pdf":
-        content = parse_pdf_stub(path)
-    else:
-        content = {"text": "", "tables": []}
-    
-    # Build metadata
+    # Build metadata from path
     meta = {
         "filename": path.name,
         "content_hash": "",  # Will be set by caller
         "size": path.stat().st_size if path.exists() else 0
     }
     
-    # Return normalized model
-    return build_normalized(doc_type, meta, content["text"], content["tables"])
+    return parse_to_normalized(path, meta, ocr_enabled, ocr_lang)

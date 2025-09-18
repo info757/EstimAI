@@ -6,6 +6,10 @@ import time
 
 from openai import OpenAI
 from jsonschema import validate, ValidationError
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 async def llm_call_json(*, prompt: str, context: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,12 +64,13 @@ async def llm_call_json(*, prompt: str, context: Dict[str, Any], schema: Dict[st
                 raw_text = content[:200] + "..." if len(content) > 200 else content
                 raise ValueError(f"Failed to parse JSON response: {e}. Raw text: {raw_text}")
             
-            # Validate against schema
-            try:
-                validate(instance=result, schema=schema)
-            except ValidationError as e:
-                raw_text = content[:200] + "..." if len(content) > 200 else content
-                raise ValueError(f"Response validation failed: {e}. Raw text: {raw_text}")
+            # Validate against schema if provided
+            if schema is not None:
+                try:
+                    validate(instance=result, schema=schema)
+                except ValidationError as e:
+                    raw_text = content[:200] + "..." if len(content) > 200 else content
+                    raise ValueError(f"Response validation failed: {e}. Raw text: {raw_text}")
             
             return result
             

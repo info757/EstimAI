@@ -16,11 +16,12 @@ from .config import get_settings
 # OAuth2 scheme for Bearer token authentication
 oauth2_scheme = HTTPBearer()
 
-# Demo users for development/testing
-DEMO_USERS = {
-    "demo@example.com": {
-        "password": "demo123",
-        "name": "Demo User",
+# Users for development/testing
+# TODO: Replace with proper user database/authentication system
+USERS = {
+    "admin@example.com": {
+        "password": "admin123",
+        "name": "Admin User",
         "scopes": ["read", "write"]
     }
 }
@@ -166,8 +167,8 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
     Returns:
         User information dictionary if authentication succeeds, None otherwise
     """
-    if username in DEMO_USERS:
-        user = DEMO_USERS[username]
+    if username in USERS:
+        user = USERS[username]
         if user["password"] == password:
             return {
                 "username": username,

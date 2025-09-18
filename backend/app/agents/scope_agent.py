@@ -37,7 +37,7 @@ async def run(project_id: str) -> ScopeOutput:
     prompt = prompt_path.read_text(encoding="utf-8")
     schema = ScopeOutput.model_json_schema()
 
-    # 3) LLM call (JSON mode)
+    # 3) LLM call (JSON mode) with schema validation to ensure project_id is included
     raw = await llm_call_json(prompt=prompt, context=ctx, schema=schema)
 
     # 4) Safety: normalize to a valid ScopeOutput

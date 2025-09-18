@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { 
   pipelineAsync, 
   getJob, 
@@ -8,10 +8,10 @@ import {
 } from '../api/client'
 import { UploadPanel } from '../components/UploadPanel'
 import { IngestSources } from '../components/IngestSources'
-import { SampleFiles } from '../components/SampleFiles'
 import type { JobResponse } from '../types/api'
 import Toast from '../components/Toast'
 import { useArtifacts } from '../hooks/useArtifacts'
+import DebugPanel from '../components/DebugPanel'
 
 interface ToastState {
   type: 'success' | 'error' | 'info';
@@ -20,6 +20,7 @@ interface ToastState {
 
 export default function ProjectPage() {
   const { pid = '' } = useParams()
+  
   const { items: artifacts, loading: artifactsLoading, refresh: refreshArtifacts } = useArtifacts(pid)
   const [isGeneratingBid, setIsGeneratingBid] = useState(false)
   const [isRunningPipeline, setIsRunningPipeline] = useState(false)
@@ -31,6 +32,14 @@ export default function ProjectPage() {
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     setToast({ type, message })
   }, [])
+  
+  // Dev assertion for missing pid
+  useEffect(() => {
+    if (!pid) {
+      console.error('ProjectPage: No project ID found in URL params');
+      showToast('error', 'No project selected—open a project first.');
+    }
+  }, [pid, showToast]);
 
   const hideToast = useCallback(() => {
     setToast(null)
@@ -151,18 +160,30 @@ export default function ProjectPage() {
       <div className="grid gap-3">
         <div className="text-lg font-semibold">Review</div>
         <div className="flex gap-3">
-          <a
-            href={`/projects/${pid}/review/takeoff`}
-            className="rounded-2xl px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
-          >
-            Review Quantities
-          </a>
-          <a
-            href={`/projects/${pid}/review/estimate`}
-            className="rounded-2xl px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-          >
-            Review Pricing
-          </a>
+          {!pid ? (
+            <div className="text-sm text-red-600">No project selected</div>
+          ) : (
+            <>
+              <Link
+                to={`/projects/${pid}/review`}
+                className="rounded-2xl px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Review All
+              </Link>
+              <Link
+                to={`/projects/${pid}/review?focus=takeoff`}
+                className="rounded-2xl px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
+              >
+                Review Quantities
+              </Link>
+              <Link
+                to={`/projects/${pid}/review?focus=estimate`}
+                className="rounded-2xl px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+              >
+                Review Pricing
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -172,8 +193,6 @@ export default function ProjectPage() {
         </div>
       )}
 
-      {/* Sample Files Section */}
-      <SampleFiles pid={pid} onComplete={refreshArtifacts} />
 
       {/* Upload Section */}
       <UploadPanel 
@@ -197,19 +216,23 @@ export default function ProjectPage() {
             No artifacts yet. Click "Generate Bid PDF" or "Run Full Pipeline".
           </div>
         )}
-        {artifacts.map((artifact) => (
-          <div key={artifact.path} className="flex items-center justify-between rounded-2xl p-4 shadow bg-white">
-            <div className="font-medium">{artifact.type || 'File'}</div>
-            <a 
-              className="underline hover:text-blue-600 transition-colors" 
-              href={fileUrl(artifact.path)} 
-              target="_blank" 
-              rel="noreferrer"
-            >
-              Download
-            </a>
-          </div>
-        ))}
+        {artifacts.map((artifact) => {
+          // Extract filename from path for better display
+          const filename = artifact.path.split('/').pop() || artifact.type || 'File';
+          return (
+            <div key={artifact.path} className="flex items-center justify-between rounded-2xl p-4 shadow bg-white">
+              <div className="font-medium">{filename}</div>
+              <a 
+                className="underline hover:text-blue-600 transition-colors" 
+                href={fileUrl(artifact.path)} 
+                target="_blank" 
+                rel="noreferrer"
+              >
+                Download
+              </a>
+            </div>
+          );
+        })}
       </div>
 
       {/* Toast notifications */}
@@ -220,6 +243,9 @@ export default function ProjectPage() {
           onDismiss={hideToast}
         />
       )}
+      
+      {/* Debug Panel */}
+      <DebugPanel currentJobId={currentJobId} />
     </div>
   )
 }

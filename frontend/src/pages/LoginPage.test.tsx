@@ -49,12 +49,12 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   });
 
-  it('shows demo credentials', () => {
+  it('shows admin credentials', () => {
     renderLoginPage();
     
-    expect(screen.getByText(/Demo credentials:/)).toBeInTheDocument();
-    expect(screen.getByText('demo@example.com')).toBeInTheDocument();
-    expect(screen.getByText('demo123')).toBeInTheDocument();
+    expect(screen.getByText(/Admin credentials:/)).toBeInTheDocument();
+    expect(screen.getByText('admin@example.com')).toBeInTheDocument();
+    expect(screen.getByText('admin123')).toBeInTheDocument();
   });
 
   it('handles form submission', async () => {
@@ -93,7 +93,7 @@ describe('LoginPage', () => {
       email: 'test@example.com',
       name: 'Test User'
     });
-    expect(mockNavigate).toHaveBeenCalledWith('/projects/demo', { replace: true });
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
   });
 
   it('shows error message on login failure', async () => {

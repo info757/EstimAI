@@ -45,6 +45,26 @@ def _load_estimate(pid: str) -> Dict[str, Any]:
     jf = _latest_file(est_dir, ".json")
     if jf:
         base_data = _read_json(jf)
+        
+        # Check if the loaded data is a list (reviewed items) or dict (full estimate)
+        if isinstance(base_data, list):
+            # This is reviewed items, need to find the base estimate structure
+            base_estimate_files = [f for f in est_dir.glob("*.json") if f.name != "reviewed.json"]
+            if base_estimate_files:
+                # Get the most recent non-reviewed file
+                latest_base = sorted(base_estimate_files, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+                base_data = _read_json(latest_base)
+            else:
+                # No base estimate file, create minimal structure
+                base_data = {
+                    "project_id": pid,
+                    "items": [],
+                    "subtotal": 0.0,
+                    "overhead_pct": 10.0,
+                    "profit_pct": 5.0,
+                    "total_bid": 0.0,
+                }
+        
         # Use reviewed version if available, otherwise base
         if "items" in base_data and base_data["items"]:
             reviewed_items = get_reviewed_or_base(pid, "estimate", base_data["items"])

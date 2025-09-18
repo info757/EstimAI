@@ -1,5 +1,369 @@
 {
-  "Concrete Slab 3000psi": 8.5,
-  "Structural Steel (ton)": 1200.0
+  "metadata": {
+    "version": "2024.1",
+    "description": "Synthetic RSMeans-style costbook for EstimAI",
+    "base_year": 2024,
+    "location_factor": 1.0,
+    "notes": "Costs are per unit (SF, LF, EA, CY, etc.) and include material, labor, and equipment"
+  },
+  "costs": {
+    "03-300": {
+      "description": "Concrete - Foundation",
+      "unit": "CY",
+      "unit_cost": 125.00,
+      "category": "Concrete",
+      "trade": "Concrete"
+    },
+    "03-310": {
+      "description": "Concrete - Superstructure",
+      "unit": "CY", 
+      "unit_cost": 145.00,
+      "category": "Concrete",
+      "trade": "Concrete"
+    },
+    "03-320": {
+      "description": "Concrete - Slab on Grade",
+      "unit": "SF",
+      "unit_cost": 8.50,
+      "category": "Concrete",
+      "trade": "Concrete"
+    },
+    "03-330": {
+      "description": "Concrete - Elevated Slab",
+      "unit": "SF",
+      "unit_cost": 12.75,
+      "category": "Concrete",
+      "trade": "Concrete"
+    },
+    "05-100": {
+      "description": "Structural Steel - Beams",
+      "unit": "LB",
+      "unit_cost": 2.85,
+      "category": "Structural Steel",
+      "trade": "Structural Steel"
+    },
+    "05-110": {
+      "description": "Structural Steel - Columns",
+      "unit": "LB",
+      "unit_cost": 3.20,
+      "category": "Structural Steel", 
+      "trade": "Structural Steel"
+    },
+    "05-120": {
+      "description": "Structural Steel - Decking",
+      "unit": "SF",
+      "unit_cost": 4.25,
+      "category": "Structural Steel",
+      "trade": "Structural Steel"
+    },
+    "05-130": {
+      "description": "Structural Steel - Miscellaneous",
+      "unit": "LB",
+      "unit_cost": 2.95,
+      "category": "Structural Steel",
+      "trade": "Structural Steel"
+    },
+    "07-200": {
+      "description": "Thermal and Moisture Protection - Roofing",
+      "unit": "SF",
+      "unit_cost": 15.50,
+      "category": "Thermal Protection",
+      "trade": "Roofing"
+    },
+    "07-210": {
+      "description": "Thermal and Moisture Protection - Insulation",
+      "unit": "SF",
+      "unit_cost": 3.75,
+      "category": "Thermal Protection",
+      "trade": "Insulation"
+    },
+    "07-220": {
+      "description": "Thermal and Moisture Protection - Waterproofing",
+      "unit": "SF",
+      "unit_cost": 8.90,
+      "category": "Thermal Protection",
+      "trade": "Waterproofing"
+    },
+    "08-100": {
+      "description": "Openings - Windows",
+      "unit": "SF",
+      "unit_cost": 45.00,
+      "category": "Openings",
+      "trade": "Glazing"
+    },
+    "08-110": {
+      "description": "Openings - Doors",
+      "unit": "EA",
+      "unit_cost": 850.00,
+      "category": "Openings",
+      "trade": "Doors"
+    },
+    "08-120": {
+      "description": "Curtain Wall / Glazing",
+      "unit": "SF",
+      "unit_cost": 65.00,
+      "category": "Openings",
+      "trade": "Curtain Wall"
+    },
+    "09-200": {
+      "description": "Finishes - Drywall",
+      "unit": "SF",
+      "unit_cost": 4.25,
+      "category": "Finishes",
+      "trade": "Drywall"
+    },
+    "09-210": {
+      "description": "Finishes - Paint",
+      "unit": "SF",
+      "unit_cost": 2.85,
+      "category": "Finishes",
+      "trade": "Painting"
+    },
+    "09-220": {
+      "description": "Finishes - Flooring - Carpet",
+      "unit": "SF",
+      "unit_cost": 12.50,
+      "category": "Finishes",
+      "trade": "Flooring"
+    },
+    "09-230": {
+      "description": "Finishes - Flooring - VCT",
+      "unit": "SF",
+      "unit_cost": 8.75,
+      "category": "Finishes",
+      "trade": "Flooring"
+    },
+    "09-240": {
+      "description": "Finishes - Flooring - Tile",
+      "unit": "SF",
+      "unit_cost": 18.50,
+      "category": "Finishes",
+      "trade": "Flooring"
+    },
+    "09-250": {
+      "description": "Finishes - Ceilings - Acoustic Tile",
+      "unit": "SF",
+      "unit_cost": 6.25,
+      "category": "Finishes",
+      "trade": "Ceilings"
+    },
+    "09-260": {
+      "description": "Finishes - Ceilings - Gypsum Board",
+      "unit": "SF",
+      "unit_cost": 4.85,
+      "category": "Finishes",
+      "trade": "Ceilings"
+    },
+    "09-270": {
+      "description": "Interior Partitions - Drywall",
+      "unit": "SF",
+      "unit_cost": 5.50,
+      "category": "Finishes",
+      "trade": "Partitions"
+    },
+    "09-280": {
+      "description": "Interior Partitions - Metal Stud",
+      "unit": "SF",
+      "unit_cost": 6.75,
+      "category": "Finishes",
+      "trade": "Partitions"
+    },
+    "09-290": {
+      "description": "Interior Partitions - Glass",
+      "unit": "SF",
+      "unit_cost": 35.00,
+      "category": "Finishes",
+      "trade": "Partitions"
+    },
+    "11-100": {
+      "description": "Equipment - Elevators",
+      "unit": "EA",
+      "unit_cost": 125000.00,
+      "category": "Equipment",
+      "trade": "Elevators"
+    },
+    "11-110": {
+      "description": "Equipment - Escalators",
+      "unit": "EA",
+      "unit_cost": 185000.00,
+      "category": "Equipment",
+      "trade": "Escalators"
+    },
+    "21-100": {
+      "description": "Fire Suppression - Sprinklers",
+      "unit": "SF",
+      "unit_cost": 8.50,
+      "category": "Fire Protection",
+      "trade": "Fire Protection"
+    },
+    "21-110": {
+      "description": "Fire Suppression - Fire Alarm",
+      "unit": "SF",
+      "unit_cost": 3.25,
+      "category": "Fire Protection",
+      "trade": "Fire Protection"
+    },
+    "22-100": {
+      "description": "Plumbing - Fixtures",
+      "unit": "EA",
+      "unit_cost": 450.00,
+      "category": "Plumbing",
+      "trade": "Plumbing"
+    },
+    "22-110": {
+      "description": "Plumbing - Piping",
+      "unit": "LF",
+      "unit_cost": 12.50,
+      "category": "Plumbing",
+      "trade": "Plumbing"
+    },
+    "22-120": {
+      "description": "Plumbing - Water Heater",
+      "unit": "EA",
+      "unit_cost": 2500.00,
+      "category": "Plumbing",
+      "trade": "Plumbing"
+    },
+    "23-100": {
+      "description": "HVAC - Air Handling Units",
+      "unit": "EA",
+      "unit_cost": 15000.00,
+      "category": "HVAC",
+      "trade": "HVAC"
+    },
+    "23-110": {
+      "description": "HVAC - Ductwork",
+      "unit": "SF",
+      "unit_cost": 8.75,
+      "category": "HVAC",
+      "trade": "HVAC"
+    },
+    "23-120": {
+      "description": "HVAC - VAV Boxes",
+      "unit": "EA",
+      "unit_cost": 850.00,
+      "category": "HVAC",
+      "trade": "HVAC"
+    },
+    "23-130": {
+      "description": "HVAC - Chillers",
+      "unit": "EA",
+      "unit_cost": 125000.00,
+      "category": "HVAC",
+      "trade": "HVAC"
+    },
+    "23-140": {
+      "description": "HVAC - Boilers",
+      "unit": "EA",
+      "unit_cost": 45000.00,
+      "category": "HVAC",
+      "trade": "HVAC"
+    },
+    "26-100": {
+      "description": "Electrical - Power Distribution",
+      "unit": "SF",
+      "unit_cost": 12.50,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-110": {
+      "description": "Electrical - Lighting Fixtures",
+      "unit": "EA",
+      "unit_cost": 125.00,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-120": {
+      "description": "Electrical - Emergency Lighting",
+      "unit": "EA",
+      "unit_cost": 85.00,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-130": {
+      "description": "Electrical - Panelboards",
+      "unit": "EA",
+      "unit_cost": 2500.00,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-140": {
+      "description": "Electrical - Transformers",
+      "unit": "EA",
+      "unit_cost": 15000.00,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-150": {
+      "description": "Electrical - Conduit",
+      "unit": "LF",
+      "unit_cost": 3.25,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "26-160": {
+      "description": "Electrical - Wire",
+      "unit": "LF",
+      "unit_cost": 1.85,
+      "category": "Electrical",
+      "trade": "Electrical"
+    },
+    "31-100": {
+      "description": "Earthwork - Excavation",
+      "unit": "CY",
+      "unit_cost": 8.50,
+      "category": "Earthwork",
+      "trade": "Earthwork"
+    },
+    "31-110": {
+      "description": "Earthwork - Backfill",
+      "unit": "CY",
+      "unit_cost": 6.25,
+      "category": "Earthwork",
+      "trade": "Earthwork"
+    },
+    "31-120": {
+      "description": "Earthwork - Compaction",
+      "unit": "SF",
+      "unit_cost": 1.25,
+      "category": "Earthwork",
+      "trade": "Earthwork"
+    },
+    "32-100": {
+      "description": "Exterior Improvements - Paving",
+      "unit": "SF",
+      "unit_cost": 8.50,
+      "category": "Sitework",
+      "trade": "Paving"
+    },
+    "32-110": {
+      "description": "Exterior Improvements - Landscaping",
+      "unit": "SF",
+      "unit_cost": 3.25,
+      "category": "Sitework",
+      "trade": "Landscaping"
+    },
+    "32-120": {
+      "description": "Exterior Improvements - Fencing",
+      "unit": "LF",
+      "unit_cost": 25.00,
+      "category": "Sitework",
+      "trade": "Fencing"
+    }
+  },
+  "assembly_mappings": {
+    "concrete": ["03-300", "03-310", "03-320", "03-330"],
+    "structural_steel": ["05-100", "05-110", "05-120", "05-130"],
+    "curtain_wall": ["08-120"],
+    "glazing": ["08-100", "08-120"],
+    "drywall": ["09-200", "09-270", "09-280"],
+    "partitions": ["09-270", "09-280", "09-290"],
+    "ceilings": ["09-250", "09-260"],
+    "flooring": ["09-220", "09-230", "09-240"],
+    "hvac": ["23-100", "23-110", "23-120", "23-130", "23-140"],
+    "plumbing": ["22-100", "22-110", "22-120"],
+    "electrical": ["26-100", "26-110", "26-120", "26-130", "26-140", "26-150", "26-160"],
+    "elevators": ["11-100"],
+    "fire_protection": ["21-100", "21-110"]
+  }
 }
-

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { post } from '../api/client'
 
 export default function UploadPage() {
-  const [pid, setPid] = useState('demo')
+  const [pid, setPid] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
   const [busy, setBusy] = useState(false)
   const nav = useNavigate()

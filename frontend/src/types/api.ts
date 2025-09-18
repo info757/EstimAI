@@ -37,6 +37,24 @@ export interface ArtifactsResponse {
   artifacts: Record<string, string>;
 }
 
+export interface IngestItem {
+  filename: string;
+  size: number;
+  indexed_at?: string;
+  status: 'indexed' | 'skipped' | 'error';
+  content_hash: string;
+  source_type: 'upload' | 'external';
+  reason?: string;
+  error?: string;
+}
+
+export interface IngestManifest {
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+  items: IngestItem[];
+}
+
 export interface ArtifactItem {
   path: string;
   type?: string;

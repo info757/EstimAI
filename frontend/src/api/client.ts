@@ -4,6 +4,7 @@ import type {
   PipelineAsyncResponse, 
   BidResponse, 
   ArtifactsResponse,
+  IngestManifest,
   ReviewResponse,
   Patch,
   PatchResponse,
@@ -12,12 +13,10 @@ import type {
 } from '../types/api';
 import type { LoginRequest, LoginResponse } from '../types/auth';
 import { getToken } from '../state/auth';
+import { config } from '../config';
 
-export const API_BASE = 
-  (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api';
-
-export const FILE_BASE = 
-  (import.meta as any).env?.VITE_FILE_BASE || 'http://localhost:8000';
+export const API_BASE = config.api.baseUrl;
+export const FILE_BASE = config.api.fileBaseUrl;
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -27,6 +26,7 @@ export async function api<T>(
 ): Promise<T> {
   // Get authentication token
   const token = getToken();
+  
   
   const res = await fetch(`${API_BASE}${path}`, {
     method: options.method ?? 'GET',
@@ -39,6 +39,7 @@ export async function api<T>(
       ...(options.headers || {}),
     },
   });
+  
   if (!res.ok) {
     // Handle 401 Unauthorized - clear token and throw error
     if (res.status === 401) {
@@ -98,6 +99,14 @@ export async function getJob(id: string): Promise<JobResponse> {
 
 export async function listArtifacts(pid: string): Promise<ArtifactsResponse> {
   return await get<ArtifactsResponse>(`/projects/${encodeURIComponent(pid)}/artifacts`);
+}
+
+export async function getIngestManifest(pid: string): Promise<IngestManifest> {
+  return await get<IngestManifest>(`/projects/${encodeURIComponent(pid)}/ingest`);
+}
+
+export async function rebuildIngestIndices(pid: string): Promise<JobResponse> {
+  return await post<JobResponse>(`/projects/${encodeURIComponent(pid)}/ingest/rebuild`);
 }
 
 export async function generateBid(pid: string): Promise<BidResponse> {
@@ -170,7 +179,3 @@ export async function ingestAsync(pid: string, files: File[]): Promise<{ job_id:
   return await post<{ job_id: string }>(`/projects/${encodeURIComponent(pid)}/ingest_async`, form);
 }
 
-// Demo reset API Method
-export async function resetDemo(): Promise<{ ok: boolean }> {
-  return await post<{ ok: boolean }>('/demo/reset');
-}

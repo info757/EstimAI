@@ -6,13 +6,11 @@ import RootLayout from './RootLayout'
 import DashboardPage from './pages/DashboardPage'
 import UploadPage from './pages/UploadPage'
 import ProjectPage from './pages/ProjectPage'
-import DemoProjectPage from './pages/DemoProjectPage'
+import ReviewPage from './pages/ReviewPage'
 import ReviewTakeoffPage from './pages/ReviewTakeoffPage'
 import ReviewEstimatePage from './pages/ReviewEstimatePage'
 import LoginPage from './pages/LoginPage'
 import PrivateRoute from './components/PrivateRoute'
-import DemoAwareRoute from './components/DemoAwareRoute'
-import DemoAwareProjectPage from './components/DemoAwareProjectPage'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -28,19 +26,24 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             } />
             <Route path="login" element={<LoginPage />} />
             <Route path="projects/:pid" element={
-              <DemoAwareRoute>
-                <DemoAwareProjectPage />
-              </DemoAwareRoute>
+              <PrivateRoute>
+                <ProjectPage />
+              </PrivateRoute>
+            } />
+            <Route path="projects/:pid/review" element={
+              <PrivateRoute>
+                <ReviewPage />
+              </PrivateRoute>
             } />
             <Route path="projects/:pid/review/takeoff" element={
-              <DemoAwareRoute>
+              <PrivateRoute>
                 <ReviewTakeoffPage />
-              </DemoAwareRoute>
+              </PrivateRoute>
             } />
             <Route path="projects/:pid/review/estimate" element={
-              <DemoAwareRoute>
+              <PrivateRoute>
                 <ReviewEstimatePage />
-              </DemoAwareRoute>
+              </PrivateRoute>
             } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

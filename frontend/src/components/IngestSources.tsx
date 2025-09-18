@@ -1,24 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ingestAsync, getJob } from '../api/client';
-import type { JobStatus } from '../types/api';
+import { ingestAsync, getJob, getIngestManifest, rebuildIngestIndices } from '../api/client';
+import type { JobStatus, IngestManifest, IngestItem } from '../types/api';
 
-interface IngestItem {
-  filename: string;
-  size: number;
-  indexed_at?: string;
-  status: 'indexed' | 'skipped' | 'error';
-  content_hash: string;
-  source_type: 'upload' | 'external';
-  reason?: string;
-  error?: string;
-}
-
-interface IngestManifest {
-  project_id: string;
-  created_at: string;
-  updated_at: string;
-  items: IngestItem[];
-}
 
 interface IngestSourcesProps {
   pid: string;
@@ -33,18 +16,8 @@ export function IngestSources({ pid }: IngestSourcesProps) {
   const fetchManifest = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/projects/${pid}/ingest`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setManifest(data);
-      } else {
-        console.error('Failed to fetch ingest manifest');
-      }
+      const data = await getIngestManifest(pid);
+      setManifest(data);
     } catch (error) {
       console.error('Error fetching ingest manifest:', error);
     } finally {
@@ -55,21 +28,10 @@ export function IngestSources({ pid }: IngestSourcesProps) {
   const handleRebuildIndices = async () => {
     try {
       setRebuildLoading(true);
-      const response = await fetch(`/api/projects/${pid}/ingest/rebuild`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setRebuildJobId(data.job_id);
-        // Start polling for job completion
-        pollRebuildJob(data.job_id);
-      } else {
-        console.error('Failed to start rebuild');
-      }
+      const data = await rebuildIngestIndices(pid);
+      setRebuildJobId(data.job_id);
+      // Start polling for job completion
+      pollRebuildJob(data.job_id);
     } catch (error) {
       console.error('Error starting rebuild:', error);
     } finally {
@@ -184,7 +146,18 @@ export function IngestSources({ pid }: IngestSourcesProps) {
               {manifest.items.map((item, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {item.filename}
+                    {item.filename.toLowerCase().endsWith('.pdf') ? (
+                      <a
+                        href={`/api/projects/${pid}/view/${item.filename}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        {item.filename}
+                      </a>
+                    ) : (
+                      item.filename
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatFileSize(item.size)}
