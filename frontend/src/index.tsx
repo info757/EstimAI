@@ -10,6 +10,7 @@ import ReviewPage from './pages/ReviewPage'
 import ReviewTakeoffPage from './pages/ReviewTakeoffPage'
 import ReviewEstimatePage from './pages/ReviewEstimatePage'
 import LoginPage from './pages/LoginPage'
+import VectorTakeoffPage from './pages/vector-takeoff'
 import PrivateRoute from './components/PrivateRoute'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -45,6 +46,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
                 <ReviewEstimatePage />
               </PrivateRoute>
             } />
+            <Route path="vector-takeoff" element={<VectorTakeoffPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

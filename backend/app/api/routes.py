@@ -19,6 +19,12 @@ r.include_router(projects_router)
 r.include_router(jobs_router)
 r.include_router(review_router)
 
+# Vector takeoff (optional, can be disabled via env)
+ENABLE_VECTOR = os.getenv("VECTOR_TAKEOFF", "true").lower() == "true"
+if ENABLE_VECTOR:
+    from .vector_takeoff import router as vector_takeoff_router
+    r.include_router(vector_takeoff_router)
+
 @r.post("/projects/{pid}/ingest", tags=["projects"])
 async def ingest(pid: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     """

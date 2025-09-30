@@ -1,0 +1,512 @@
+{
+  "meta": {
+    "title": "Schematic Site Plan - Test Vector PDF (True Scale)",
+    "scale": "1\" = 20'",
+    "units": "feet",
+    "note": "Schematic for software validation. Not for construction."
+  },
+  "building": {
+    "lower_left_ft": [
+      35.0,
+      20.0
+    ],
+    "width_ft": 100.0,
+    "height_ft": 80.0,
+    "area_sf": 8000.0
+  },
+  "curbs": {
+    "total_length_ft": 580.0,
+    "segments": [
+      {
+        "polyline_ft": [
+          [
+            0,
+            0
+          ],
+          [
+            170.0,
+            0
+          ],
+          [
+            170.0,
+            120.0
+          ],
+          [
+            0,
+            120.0
+          ]
+        ],
+        "length_ft": 580.0
+      }
+    ]
+  },
+  "sidewalks": {
+    "total_area_sf": 0.0,
+    "polygons": []
+  },
+  "pavement": {
+    "total_area_sf": 12400.0,
+    "polygons": [
+      {
+        "polygon_ft": [
+          [
+            0,
+            0
+          ],
+          [
+            170.0,
+            0
+          ],
+          [
+            170.0,
+            120.0
+          ],
+          [
+            0,
+            120.0
+          ]
+        ],
+        "area_sf": 20400.0
+      }
+    ]
+  },
+  "parking_stalls": {
+    "count": 20,
+    "stall_size_ft": [
+      9.0,
+      18.0
+    ]
+  },
+  "utilities": {
+    "sanitary": {
+      "pipe_diam_in": 8,
+      "total_length_ft": 350.0,
+      "segments": [
+        {
+          "from_ft": [
+            100,
+            80
+          ],
+          "to_ft": [
+            450,
+            80
+          ],
+          "length_ft": 350.0
+        }
+      ],
+      "manholes": [
+        {
+          "center_ft": [
+            100,
+            80
+          ],
+          "invert_depth_ft": 10.0
+        },
+        {
+          "center_ft": [
+            187.5,
+            80
+          ],
+          "invert_depth_ft": 12.0
+        },
+        {
+          "center_ft": [
+            275,
+            80
+          ],
+          "invert_depth_ft": 14.0
+        },
+        {
+          "center_ft": [
+            362.5,
+            80
+          ],
+          "invert_depth_ft": 16.0
+        },
+        {
+          "center_ft": [
+            450,
+            80
+          ],
+          "invert_depth_ft": 18.0
+        }
+      ]
+    },
+    "storm": {
+      "pipe_diam_in": 24,
+      "total_length_ft": 430.0,
+      "segments": [
+        {
+          "from_ft": [
+            100,
+            530
+          ],
+          "to_ft": [
+            450,
+            530
+          ],
+          "length_ft": 350.0
+        },
+        {
+          "from_ft": [
+            135,
+            510
+          ],
+          "to_ft": [
+            135,
+            530
+          ],
+          "length_ft": 20.0
+        },
+        {
+          "from_ft": [
+            222.5,
+            510
+          ],
+          "to_ft": [
+            222.5,
+            530
+          ],
+          "length_ft": 20.0
+        },
+        {
+          "from_ft": [
+            327.5,
+            510
+          ],
+          "to_ft": [
+            327.5,
+            530
+          ],
+          "length_ft": 20.0
+        },
+        {
+          "from_ft": [
+            415,
+            510
+          ],
+          "to_ft": [
+            415,
+            530
+          ],
+          "length_ft": 20.0
+        }
+      ],
+      "inlets": [
+        {
+          "center_ft": [
+            135,
+            510
+          ]
+        },
+        {
+          "center_ft": [
+            222.5,
+            510
+          ]
+        },
+        {
+          "center_ft": [
+            327.5,
+            510
+          ]
+        },
+        {
+          "center_ft": [
+            415,
+            510
+          ]
+        }
+      ]
+    },
+    "water": {
+      "pipe_diam_in": 12,
+      "total_length_ft": 1460.0,
+      "segments": [
+        {
+          "from_ft": [
+            130,
+            80
+          ],
+          "to_ft": [
+            420,
+            80
+          ],
+          "length_ft": 290.0
+        },
+        {
+          "from_ft": [
+            420,
+            80
+          ],
+          "to_ft": [
+            420,
+            520
+          ],
+          "length_ft": 440.0
+        },
+        {
+          "from_ft": [
+            420,
+            520
+          ],
+          "to_ft": [
+            130,
+            520
+          ],
+          "length_ft": 290.0
+        },
+        {
+          "from_ft": [
+            130,
+            520
+          ],
+          "to_ft": [
+            130,
+            80
+          ],
+          "length_ft": 440.0
+        }
+      ],
+      "hydrants": [
+        {
+          "center_ft": [
+            130,
+            520
+          ]
+        },
+        {
+          "center_ft": [
+            420,
+            80
+          ]
+        }
+      ]
+    }
+  },
+  "structures": {
+    "count": 11
+  },
+  "contours": {
+    "existing": [
+      {
+        "polyline_ft": [
+          [
+            60,
+            80
+          ],
+          [
+            540,
+            90
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            120
+          ],
+          [
+            540,
+            130
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            160
+          ],
+          [
+            540,
+            170
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            200
+          ],
+          [
+            540,
+            210
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            240
+          ],
+          [
+            540,
+            250
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            280
+          ],
+          [
+            540,
+            290
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            320
+          ],
+          [
+            540,
+            330
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            360
+          ],
+          [
+            540,
+            370
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            400
+          ],
+          [
+            540,
+            410
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            60,
+            440
+          ],
+          [
+            540,
+            450
+          ]
+        ]
+      }
+    ],
+    "proposed": [
+      {
+        "polyline_ft": [
+          [
+            80,
+            110
+          ],
+          [
+            520,
+            110
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            150
+          ],
+          [
+            520,
+            150
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            190
+          ],
+          [
+            520,
+            190
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            230
+          ],
+          [
+            520,
+            230
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            270
+          ],
+          [
+            520,
+            270
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            310
+          ],
+          [
+            520,
+            310
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            350
+          ],
+          [
+            520,
+            350
+          ]
+        ]
+      },
+      {
+        "polyline_ft": [
+          [
+            80,
+            390
+          ],
+          [
+            520,
+            390
+          ]
+        ]
+      }
+    ]
+  }
+}
