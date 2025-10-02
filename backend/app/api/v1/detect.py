@@ -42,7 +42,7 @@ async def detect_counts(
         
         # Step 2: Run detection pipeline
         print(f"Running detection on {file}, page {page}")
-        hits, meta = run_detection(str(pdf_path), page)
+        hits, meta = await run_detection(str(pdf_path), page)
         
         # Step 3: Process hits and upsert count items
         created_items = []

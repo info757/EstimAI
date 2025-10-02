@@ -58,6 +58,21 @@ artifacts/
 *.pdf  # generated bid reports
 
 # =====================
+# Build artifacts & large files
+# =====================
+frontend/public/lib/
+frontend/public/demo.html
+backend/backend/
+backend/estimai_vector_pdf/
+backend/vpdf/
+backend/files/
+frontend/backend/
+*.wasm
+*.mem
+*.br
+*.gz
+
+# =====================
 # Docs / reports
 # =====================
 reports/

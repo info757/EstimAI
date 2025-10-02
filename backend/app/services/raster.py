@@ -15,6 +15,7 @@ from pathlib import Path
 def render_pdf_page(pdf_path: str, page: int, dpi: int = 300) -> Tuple[np.ndarray, Dict]:
     """
     Render a PDF page to a numpy array using PyMuPDF.
+    Handles Pixmap stride / row padding correctly.
     
     Args:
         pdf_path: Path to the PDF file
@@ -46,32 +47,42 @@ def render_pdf_page(pdf_path: str, page: int, dpi: int = 300) -> Tuple[np.ndarra
         # Create transformation matrix for the specified DPI
         matrix = fitz.Matrix(zoom, zoom)
         
-        # Render page to pixmap
-        pixmap = pdf_page.get_pixmap(matrix=matrix)
+        # Render page to pixmap with RGB colorspace, no alpha
+        pixmap = pdf_page.get_pixmap(matrix=matrix, colorspace=fitz.csRGB, alpha=False)
         
-        # Convert to numpy array
-        # Get raw image data as bytes
-        img_data = pixmap.tobytes("ppm")
+        # Get raw samples data
+        arr = np.frombuffer(pixmap.samples, dtype=np.uint8)
         
-        # Convert to numpy array
-        # PPM format: P6 (binary), width height, maxval, then RGB data
-        img_width_px = pixmap.width
-        img_height_px = pixmap.height
+        n = pixmap.n  # number of channels (should be 3 when alpha=False and csRGB)
+        if n != 3:
+            # normalize to RGB if needed (rare; defensive)
+            pixmap = pdf_page.get_pixmap(matrix=matrix, colorspace=fitz.csRGB, alpha=False)
+            arr = np.frombuffer(pixmap.samples, dtype=np.uint8)
+            n = pixmap.n
         
-        # Reshape the data to (height, width, 3) for RGB
-        img_array = np.frombuffer(img_data, dtype=np.uint8)
-        img_array = img_array.reshape((img_height_px, img_width_px, 3))
+        if pixmap.stride == pixmap.w * n:
+            # No padding, direct reshape
+            img_array = arr.reshape(pixmap.h, pixmap.w, n)
+        else:
+            # Handle stride/padding: reshape using stride, then crop padding columns
+            img_array = (
+                arr.reshape(pixmap.h, pixmap.stride)[:, :pixmap.w * n]
+                   .reshape(pixmap.h, pixmap.w, n)
+            )
+        
+        # Ensure contiguous RGB uint8
+        img_array = np.ascontiguousarray(img_array, dtype=np.uint8)
         
         # Calculate scale factors (PDF points per pixel)
-        scale_x_pts_per_px = page_width_pts / img_width_px
-        scale_y_pts_per_px = page_height_pts / img_height_px
+        scale_x_pts_per_px = page_width_pts / pixmap.w
+        scale_y_pts_per_px = page_height_pts / pixmap.h
         
         # Create metadata dictionary
         meta = {
             "page_width_pts": page_width_pts,
             "page_height_pts": page_height_pts,
-            "img_width_px": img_width_px,
-            "img_height_px": img_height_px,
+            "img_width_px": pixmap.w,
+            "img_height_px": pixmap.h,
             "scale_x_pts_per_px": scale_x_pts_per_px,
             "scale_y_pts_per_px": scale_y_pts_per_px,
             "dpi": dpi,
@@ -198,29 +209,44 @@ def render_pdf_page_region(
         x0, y0, x1, y1 = region
         clip_rect = fitz.Rect(x0, y0, x1, y1)
         
-        # Render the region
-        pixmap = pdf_page.get_pixmap(matrix=matrix, clip=clip_rect)
+        # Render the region with RGB colorspace, no alpha
+        pixmap = pdf_page.get_pixmap(matrix=matrix, clip=clip_rect, colorspace=fitz.csRGB, alpha=False)
         
-        # Convert to numpy array
-        img_data = pixmap.tobytes("ppm")
-        img_width_px = pixmap.width
-        img_height_px = pixmap.height
+        # Get raw samples data
+        arr = np.frombuffer(pixmap.samples, dtype=np.uint8)
         
-        img_array = np.frombuffer(img_data, dtype=np.uint8)
-        img_array = img_array.reshape((img_height_px, img_width_px, 3))
+        n = pixmap.n  # number of channels (should be 3 when alpha=False and csRGB)
+        if n != 3:
+            # normalize to RGB if needed (rare; defensive)
+            pixmap = pdf_page.get_pixmap(matrix=matrix, clip=clip_rect, colorspace=fitz.csRGB, alpha=False)
+            arr = np.frombuffer(pixmap.samples, dtype=np.uint8)
+            n = pixmap.n
+        
+        if pixmap.stride == pixmap.w * n:
+            # No padding, direct reshape
+            img_array = arr.reshape(pixmap.h, pixmap.w, n)
+        else:
+            # Handle stride/padding: reshape using stride, then crop padding columns
+            img_array = (
+                arr.reshape(pixmap.h, pixmap.stride)[:, :pixmap.w * n]
+                   .reshape(pixmap.h, pixmap.w, n)
+            )
+        
+        # Ensure contiguous RGB uint8
+        img_array = np.ascontiguousarray(img_array, dtype=np.uint8)
         
         # Calculate scale factors for the region
         region_width_pts = x1 - x0
         region_height_pts = y1 - y0
-        scale_x_pts_per_px = region_width_pts / img_width_px
-        scale_y_pts_per_px = region_height_pts / img_height_px
+        scale_x_pts_per_px = region_width_pts / pixmap.w
+        scale_y_pts_per_px = region_height_pts / pixmap.h
         
         # Create metadata
         meta = {
             "page_width_pts": region_width_pts,
             "page_height_pts": region_height_pts,
-            "img_width_px": img_width_px,
-            "img_height_px": img_height_px,
+            "img_width_px": pixmap.w,
+            "img_height_px": pixmap.h,
             "scale_x_pts_per_px": scale_x_pts_per_px,
             "scale_y_pts_per_px": scale_y_pts_per_px,
             "dpi": dpi,

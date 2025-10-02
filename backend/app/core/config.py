@@ -1,5 +1,5 @@
 """Core configuration settings using Pydantic Settings v2."""
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from pathlib import Path
 from typing import Optional
@@ -8,31 +8,25 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    
+    # Base directory for absolute paths
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent  # .../backend/app
+    
     # Database configuration
     DATABASE_URL: str = Field(
         default="sqlite:///./estimai.db",
         description="Database connection URL"
     )
     
-    # File system paths
-    FILES_DIR: str = Field(
-        default="app/files",
-        description="Directory for uploaded files"
-    )
-    
-    REPORTS_DIR: str = Field(
-        default="/tmp",
-        description="Directory for generated reports"
-    )
-    
-    TEMPLATES_DIR: str = Field(
-        default="backend/templates",
-        description="Directory for detection templates"
-    )
+    # File system paths (absolute)
+    FILES_DIR: Path = BASE_DIR / "files"  # .../backend/app/files
+    REPORTS_DIR: Path = Path("/tmp/estimai_reports")
+    TEMPLATES_DIR: Path = BASE_DIR.parent / "templates"  # .../backend/templates
     
     # Detection configuration
     DETECTOR_IMPL: str = Field(
-        default="opencv_template",
+        default="vision_llm",
         description="Detection implementation to use"
     )
     
@@ -69,6 +63,12 @@ class Settings(BaseSettings):
         description="Allowed CORS origins"
     )
     
+    # Debug settings
+    DEBUG: bool = Field(
+        default=False,
+        description="Enable debug logging"
+    )
+    
     # Detection settings
     TEMPLATE_MATCHING_THRESHOLD: float = Field(
         default=0.8,
@@ -91,22 +91,45 @@ class Settings(BaseSettings):
         description="Allowed file extensions"
     )
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    # LLM configuration
+    LLM_PROVIDER: str = Field(
+        default="openai",
+        description="LLM provider (openai, anthropic, azure, etc.)"
+    )
+    
+    VISION_MODEL: str = Field(
+        default="gpt-4o-mini",
+        description="Vision model name"
+    )
+    
+    OPENAI_API_KEY: Optional[str] = Field(
+        default=None,
+        description="OpenAI API key"
+    )
+    
+    # Image processing settings
+    TILE_PX: int = Field(
+        default=1024,
+        description="Tile size in pixels"
+    )
+    
+    TILE_OVERLAP_PX: int = Field(
+        default=128,
+        description="Tile overlap in pixels"
+    )
+    
         
     def get_files_dir(self) -> Path:
         """Get files directory as Path object."""
-        return Path(self.FILES_DIR).resolve()
+        return self.FILES_DIR.resolve()
     
     def get_reports_dir(self) -> Path:
         """Get reports directory as Path object."""
-        return Path(self.REPORTS_DIR).resolve()
+        return self.REPORTS_DIR.resolve()
     
     def get_templates_dir(self) -> Path:
         """Get templates directory as Path object."""
-        return Path(self.TEMPLATES_DIR).resolve()
+        return self.TEMPLATES_DIR.resolve()
     
     def ensure_directories(self) -> None:
         """Ensure all required directories exist."""

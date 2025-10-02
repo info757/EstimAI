@@ -8,7 +8,7 @@ from .detectors import get_detector
 from ..core.config import settings
 
 
-def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:
+async def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:
     """
     Run detection on a PDF page.
     
@@ -29,14 +29,14 @@ def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:
     if page < 0:
         raise ValueError(f"Page number must be non-negative, got: {page}")
     
-    # Step 1: Rasterize the PDF page
+    # Step 1: Rasterize the PDF page to RGB numpy array
     print(f"Rendering PDF page {page} from {pdf_path}")
     img_array, meta = render_pdf_page(str(pdf_path), page, dpi=300)
     
     # Step 2: Get detector and run detection
     print(f"Running detection with {settings.DETECTOR_IMPL} detector")
     detector = get_detector(settings.DETECTOR_IMPL)
-    hits = detector.detect(img_array)
+    hits = await detector.detect(img_array)
     
     # Step 3: Convert pixel coordinates to PDF coordinates
     print(f"Converting {len(hits)} detections to PDF coordinates")
@@ -44,13 +44,13 @@ def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:
     
     for hit in hits:
         # Convert pixel coordinates to PDF coordinates
-        x_pdf, y_pdf = px_to_pdf(hit.x_px, hit.y_px, meta)
+        x_pdf, y_pdf = px_to_pdf(hit["x_px"], hit["y_px"], meta)
         
         detection_dict = {
-            "type": hit.type,
+            "type": hit["type"],
             "x_pdf": x_pdf,
             "y_pdf": y_pdf,
-            "confidence": hit.confidence
+            "confidence": hit["confidence"]
         }
         detections.append(detection_dict)
     
@@ -79,7 +79,7 @@ def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:
     return detections, detection_meta
 
 
-def run_detection_with_region(
+async def run_detection_with_region(
     pdf_path: str, 
     page: int, 
     region: Tuple[float, float, float, float]
@@ -112,7 +112,7 @@ def run_detection_with_region(
     # Step 2: Get detector and run detection
     print(f"Running detection with {settings.DETECTOR_IMPL} detector")
     detector = get_detector(settings.DETECTOR_IMPL)
-    hits = detector.detect(img_array)
+    hits = await detector.detect(img_array)
     
     # Step 3: Convert pixel coordinates to PDF coordinates
     print(f"Converting {len(hits)} detections to PDF coordinates")
@@ -120,13 +120,13 @@ def run_detection_with_region(
     
     for hit in hits:
         # Convert pixel coordinates to PDF coordinates
-        x_pdf, y_pdf = px_to_pdf(hit.x_px, hit.y_px, meta)
+        x_pdf, y_pdf = px_to_pdf(hit["x_px"], hit["y_px"], meta)
         
         detection_dict = {
-            "type": hit.type,
+            "type": hit["type"],
             "x_pdf": x_pdf,
             "y_pdf": y_pdf,
-            "confidence": hit.confidence
+            "confidence": hit["confidence"]
         }
         detections.append(detection_dict)
     
@@ -156,7 +156,7 @@ def run_detection_with_region(
     return detections, detection_meta
 
 
-def run_detection_batch(pdf_path: str, pages: List[int]) -> Dict[int, Tuple[List[Dict], Dict]]:
+async def run_detection_batch(pdf_path: str, pages: List[int]) -> Dict[int, Tuple[List[Dict], Dict]]:
     """
     Run detection on multiple pages of a PDF.
     
@@ -171,7 +171,7 @@ def run_detection_batch(pdf_path: str, pages: List[int]) -> Dict[int, Tuple[List
     
     for page in pages:
         try:
-            detections, meta = run_detection(pdf_path, page)
+            detections, meta = await run_detection(pdf_path, page)
             results[page] = (detections, meta)
         except Exception as e:
             print(f"Error processing page {page}: {e}")

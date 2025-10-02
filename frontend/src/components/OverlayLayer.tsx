@@ -121,7 +121,18 @@ export default function OverlayLayer({
       const dm = documentViewer.getDisplayModeManager().getDisplayMode();
       if (!dm || typeof dm.getPageTransform !== 'function') return;
       const t = dm.getPageTransform(target); // { x, y, width, height } in CSS px
-      console.log('[Overlay] transform for page', target, '=>', t);
+      // ✅ Best: structured log (shows full object in Chrome devtools)
+      console.log('[Overlay] transform for page', target, t);
+      
+      // ✅ Or destructure the fields you care about
+      const { x, y, width, height } = (t as any) || {};
+      console.log(`[Overlay] t p=${target} x=${x} y=${y} w=${width} h=${height}`);
+      
+      // ✅ Or copy enumerable props (helps when JSON.stringify drops stuff)
+      console.log('[Overlay] spread:', target, { ...t });
+      
+      // ✅ Or force full inspection
+      console.dir(t, { depth: null });
 
       // Position the overlay inside the scroll view
       const parent = documentViewer.getScrollViewElement() as HTMLElement;
