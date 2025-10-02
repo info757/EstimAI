@@ -1,5 +1,12 @@
 """OpenCV template matching detector implementation."""
-import cv2
+try:
+    import cv2  # type: ignore
+except Exception as e:
+    raise RuntimeError(
+        "OpenCV is required for the template detector. "
+        "Install it with: pip install opencv-python-headless"
+    ) from e
+
 import numpy as np
 from pathlib import Path
 from typing import List, Tuple

@@ -1,5 +1,12 @@
 """Raster rendering utilities using PyMuPDF."""
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except Exception as e:
+    raise RuntimeError(
+        "PyMuPDF is required for PDF rendering. "
+        "Install it with: pip install pymupdf"
+    ) from e
+
 import numpy as np
 from typing import Tuple, Dict
 from pathlib import Path
