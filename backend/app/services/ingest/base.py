@@ -1,0 +1,6 @@
+from typing import Protocol
+from app.domain.dto import PageVectors
+
+class Ingestor(Protocol):
+    def get_page_count(self, pdf_path: str) -> int: ...
+    def read_page(self, pdf_path: str, page_index: int) -> PageVectors: ...

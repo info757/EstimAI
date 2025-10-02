@@ -130,10 +130,12 @@ async def ingest(pid: str, file: UploadFile):
             out.write(chunk)
 
     from ..workers.indexer import write_sheet_index  # import
-    from ..workers.spec_indexer import write_spec_index 
+    from ..workers.spec_indexer import write_spec_index
+    from .vector_parser import write_geometry_index
     
     idx_path = write_sheet_index(pid)
     spec_path = write_spec_index(pid)
+    geom_path = write_geometry_index(pid)
 
     # Also update the ingest manifest so the pipeline can find the files
     from .ingest import load_ingest_manifest, save_ingest_manifest, update_manifest_item
@@ -179,6 +181,7 @@ async def ingest(pid: str, file: UploadFile):
         "saved_path": str(target),
         "index_path": str(idx_path),
         "spec_index_path": str(spec_path),
+        "geometry_index_path": str(geom_path),
         "original_filename": file.filename,
         "content_type": file.content_type,
         "bytes": target.stat().st_size,
