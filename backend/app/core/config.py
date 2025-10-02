@@ -1,98 +1,122 @@
-# backend/app/core/config.py
-import os
-from pathlib import Path
-from typing import List
+"""Core configuration settings using Pydantic Settings v2."""
 from pydantic_settings import BaseSettings
-from pydantic import validator
+from pydantic import Field
+from pathlib import Path
+from typing import Optional
 
 
 class Settings(BaseSettings):
-    """Centralized configuration for EstimAI backend."""
+    """Application settings with environment variable support."""
     
-    # Required: Artifact directory (absolute path recommended)
-    ARTIFACT_DIR: str
+    # Database configuration
+    DATABASE_URL: str = Field(
+        default="sqlite:///./estimai.db",
+        description="Database connection URL"
+    )
     
-    # CORS configuration
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174"
+    # File system paths
+    FILES_DIR: str = Field(
+        default="app/files",
+        description="Directory for uploaded files"
+    )
     
-    # Logging
-    LOG_LEVEL: str = "INFO"
+    REPORTS_DIR: str = Field(
+        default="/tmp",
+        description="Directory for generated reports"
+    )
     
-    # Optional: Costbook and markup settings
-    COSTBOOK_PATH: str = ""
-    OVERHEAD_PCT: float = 10.0
-    PROFIT_PCT: float = 5.0
+    TEMPLATES_DIR: str = Field(
+        default="backend/templates",
+        description="Directory for detection templates"
+    )
     
-    # JWT Authentication settings
-    JWT_SECRET: str = "dev-secret"  # Required in production, fallback for dev
-    JWT_ALG: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # Detection configuration
+    DETECTOR_IMPL: str = Field(
+        default="opencv_template",
+        description="Detection implementation to use"
+    )
     
-    # OCR Configuration
-    OCR_ENABLED: bool = False
-    OCR_LANG: str = "eng"
+    # API configuration
+    API_V1_STR: str = Field(
+        default="/api/v1",
+        description="API v1 prefix"
+    )
     
-    # Upload Guardrails
-    ALLOWED_EXTS: str = ".pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.tif,.tiff"
-    MAX_UPLOAD_SIZE_MB: int = 25
+    PROJECT_NAME: str = Field(
+        default="EstimAI",
+        description="Project name"
+    )
     
-    # OpenAI API Configuration
-    OPENAI_API_KEY: str = ""
+    # Security settings (for future use)
+    SECRET_KEY: Optional[str] = Field(
+        default=None,
+        description="Secret key for JWT tokens"
+    )
     
+    ALGORITHM: str = Field(
+        default="HS256",
+        description="JWT algorithm"
+    )
     
-    @validator('OCR_ENABLED', pre=True)
-    def parse_ocr_enabled(cls, v):
-        """Parse OCR_ENABLED from environment string."""
-        if isinstance(v, str):
-            return v.lower() in ("1", "true", "yes")
-        return bool(v)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30,
+        description="Access token expiration in minutes"
+    )
     
-    @validator('ARTIFACT_DIR')
-    def validate_artifact_dir(cls, v):
-        """Ensure ARTIFACT_DIR is an absolute path and create if it doesn't exist."""
-        artifact_path = Path(v).resolve()
-        artifact_path.mkdir(parents=True, exist_ok=True)
-        return str(artifact_path)
+    # CORS settings
+    BACKEND_CORS_ORIGINS: list[str] = Field(
+        default=["http://localhost:5173"],
+        description="Allowed CORS origins"
+    )
     
-    @validator('CORS_ORIGINS')
-    def parse_cors_origins(cls, v):
-        """Parse CORS_ORIGINS string into list."""
-        return [origin.strip() for origin in v.split(',') if origin.strip()]
+    # Detection settings
+    TEMPLATE_MATCHING_THRESHOLD: float = Field(
+        default=0.8,
+        description="Template matching confidence threshold"
+    )
     
-    @validator('LOG_LEVEL')
-    def validate_log_level(cls, v):
-        """Validate log level."""
-        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        if v.upper() not in valid_levels:
-            raise ValueError(f'LOG_LEVEL must be one of: {valid_levels}')
-        return v.upper()
+    MAX_DETECTIONS_PER_PAGE: int = Field(
+        default=100,
+        description="Maximum detections per page"
+    )
     
-    @validator('ALLOWED_EXTS')
-    def parse_allowed_exts(cls, v):
-        """Parse ALLOWED_EXTS string into list of lowercase extensions."""
-        return [ext.strip().lower() for ext in v.split(',') if ext.strip()]
+    # File processing settings
+    MAX_FILE_SIZE_MB: int = Field(
+        default=50,
+        description="Maximum file size in MB"
+    )
     
-    @validator('MAX_UPLOAD_SIZE_MB')
-    def validate_max_upload_size(cls, v):
-        """Validate max upload size is positive."""
-        if v <= 0:
-            raise ValueError('MAX_UPLOAD_SIZE_MB must be positive')
-        return v
-    
+    ALLOWED_FILE_EXTENSIONS: list[str] = Field(
+        default=[".pdf"],
+        description="Allowed file extensions"
+    )
     
     class Config:
-        env_file = [".env", "../.env", "../../.env"]
+        env_file = ".env"
         env_file_encoding = "utf-8"
-        extra = "ignore"  # Allow extra fields from .env
+        case_sensitive = True
+        
+    def get_files_dir(self) -> Path:
+        """Get files directory as Path object."""
+        return Path(self.FILES_DIR).resolve()
+    
+    def get_reports_dir(self) -> Path:
+        """Get reports directory as Path object."""
+        return Path(self.REPORTS_DIR).resolve()
+    
+    def get_templates_dir(self) -> Path:
+        """Get templates directory as Path object."""
+        return Path(self.TEMPLATES_DIR).resolve()
+    
+    def ensure_directories(self) -> None:
+        """Ensure all required directories exist."""
+        self.get_files_dir().mkdir(parents=True, exist_ok=True)
+        self.get_reports_dir().mkdir(parents=True, exist_ok=True)
+        self.get_templates_dir().mkdir(parents=True, exist_ok=True)
 
 
-# Global settings instance
-_settings: Settings = None
+# Singleton settings instance
+settings = Settings()
 
-
-def get_settings() -> Settings:
-    """Get the global settings instance (singleton pattern)."""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
+# Ensure directories exist on import
+settings.ensure_directories()
