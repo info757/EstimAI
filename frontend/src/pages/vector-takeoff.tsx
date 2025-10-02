@@ -28,6 +28,10 @@ export default function VectorTakeoffPage() {
   const [res, setRes] = useState<TakeoffOK|null>(null);
   const [error, setError] = useState<string| null>(null);
   const [loading, setLoading] = useState(false);
+  const [debugData, setDebugData] = useState<any|null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [useLLM, setUseLLM] = useState(false);
+  const [analyzeAllPages, setAnalyzeAllPages] = useState(true);
 
   const onUpload = async () => {
     if (!file) return;
@@ -35,8 +39,10 @@ export default function VectorTakeoffPage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("page_index", "1");
+    fd.append("use_llm_classification", useLLM.toString());
+    fd.append("analyze_all_pages", analyzeAllPages.toString());
     try {
-      const r = await fetch("/api/takeoff/vector?page_index=1", { method: "POST", body: fd });
+      const r = await fetch(`/api/takeoff/vector?page_index=1&use_llm_classification=${useLLM}&analyze_all_pages=${analyzeAllPages}`, { method: "POST", body: fd });
       if (!r.ok) {
         const text = await r.text();
         setError(`HTTP ${r.status}: ${text || r.statusText}`);
@@ -44,10 +50,31 @@ export default function VectorTakeoffPage() {
       }
       const json = await r.json();
       if (!json.ok) { setError(`${json.code}: ${json.hint}`); }
-      else { setRes(json); }
+      else {       setRes(json); }
     } catch (e:any) {
       setError(e.message || "Upload failed");
     } finally { setLoading(false); }
+  };
+
+  const onDebug = async () => {
+    if (!file) return;
+    setDebugLoading(true); setError(null); setDebugData(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("page_index", "1");
+    try {
+      const r = await fetch("/api/takeoff/debug-extraction?page_index=0", { method: "POST", body: fd });
+      if (!r.ok) {
+        const text = await r.text();
+        setError(`HTTP ${r.status}: ${text || r.statusText}`);
+        return;
+      }
+      const json = await r.json();
+      if (!json.ok) { setError(`${json.code}: ${json.error}`); }
+      else { setDebugData(json); }
+    } catch (e:any) {
+      setError(e.message || "Debug failed");
+    } finally { setDebugLoading(false); }
   };
 
   const retryWithManualScale = async (ftPerUnit:number) => {
@@ -72,6 +99,29 @@ export default function VectorTakeoffPage() {
       <button onClick={onUpload} disabled={!file || loading} style={{marginLeft:10}}>
         {loading ? "Processing..." : "Run Takeoff"}
       </button>
+      <button onClick={onDebug} disabled={!file || debugLoading} style={{marginLeft:10}}>
+        {debugLoading ? "Debugging..." : "Debug Extraction"}
+      </button>
+      <div style={{marginTop: 10}}>
+        <label>
+          <input 
+            type="checkbox" 
+            checked={useLLM} 
+            onChange={e => setUseLLM(e.target.checked)}
+            style={{marginRight: 5}}
+          />
+          Use LLM Classification (AI reasoning instead of hardcoded rules)
+        </label>
+        <label style={{display: 'block', marginTop: 5}}>
+          <input 
+            type="checkbox" 
+            checked={analyzeAllPages} 
+            onChange={e => setAnalyzeAllPages(e.target.checked)}
+            style={{marginRight: 5}}
+          />
+          Analyze All Pages (automatically find site plan instead of guessing page number)
+        </label>
+      </div>
       {error && (
         <div style={{color:"crimson", marginTop:12}}>
           Error: {error}
@@ -104,6 +154,24 @@ export default function VectorTakeoffPage() {
           
           <h4>Diagnostics</h4>
           <pre style={{background:"#f6f6f6", padding:12}}>{JSON.stringify(res.diagnostics, null, 2)}</pre>
+        </div>
+      )}
+      {debugData && (
+        <div style={{marginTop:20}}>
+          <h3>Debug Data</h3>
+          <h4>Selected Page: {debugData.selected_page}</h4>
+          <h4>Summary</h4>
+          <ul>
+            <li>Lines: {debugData.summary.lines}</li>
+            <li>Texts: {debugData.summary.texts}</li>
+            <li>Filled Rectangles: {debugData.summary.filled_rects}</li>
+          </ul>
+          <h4>Sample Lines</h4>
+          <pre style={{background:"#f6f6f6", padding:12, fontSize:12}}>{JSON.stringify(debugData.sample_lines, null, 2)}</pre>
+          <h4>Sample Texts</h4>
+          <pre style={{background:"#f6f6f6", padding:12, fontSize:12}}>{JSON.stringify(debugData.sample_texts, null, 2)}</pre>
+          <h4>Sample Rectangles</h4>
+          <pre style={{background:"#f6f6f6", padding:12, fontSize:12}}>{JSON.stringify(debugData.sample_rects, null, 2)}</pre>
         </div>
       )}
     </div>

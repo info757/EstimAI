@@ -17,6 +17,7 @@ export default function RootLayout() {
         <Link to="/" className="font-semibold">EstimAI</Link>
         <nav className="flex items-center space-x-4">
           <Link to="/upload" className="underline">Upload</Link>
+          <Link to="/pdf-viewer" className="underline">PDF Viewer</Link>
           {authenticated ? (
             <>
               <span className="text-sm text-gray-600">
