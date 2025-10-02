@@ -40,10 +40,25 @@ def _load_spec_index(project_id: str) -> List[Dict[str, Any]]:
         return []
 
 
+def _load_geometry_index(project_id: str) -> List[Dict[str, Any]]:
+    """Read backend/artifacts/<pid>/geometry_index.json and return geometries[]."""
+    artifact_dir = Path(os.getenv("ARTIFACT_DIR", "backend/artifacts"))
+    idx_file = artifact_dir / project_id / "geometry_index.json"
+    if not idx_file.exists():
+        return []
+    try:
+        data = json.loads(idx_file.read_text())
+        geometries = data.get("geometries", [])
+        return geometries if isinstance(geometries, list) else []
+    except Exception:
+        return []
+
+
 async def run(project_id: str) -> TakeoffOutput:
-    # 1) Load real context from both sheet and spec indices
+    # 1) Load real context from sheet, spec, and geometry indices
     sheets = _load_sheet_index(project_id)
     specs = _load_spec_index(project_id)
+    geometries = _load_geometry_index(project_id)
 
     # 2) Build prompt + schema
     # Get the project root directory (3 levels up from this file)
@@ -57,6 +72,7 @@ async def run(project_id: str) -> TakeoffOutput:
         "project_id": project_id,
         "sheets": sheets,  # drawing/sheet information
         "specs": specs,    # specification text that may contain quantities
+        "geometries": geometries,  # vector geometry data (lines, polygons, measurements)
         # (optional) add hints you care about; schema enforces actual output
         "assemblies_hint": [
             {"assembly_id": "03-300", "measure_type": "LF", "unit": "LF"},

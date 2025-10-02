@@ -1,1 +1,1 @@
-# agents namespace
+# Agents module

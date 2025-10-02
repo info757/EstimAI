@@ -22,5 +22,7 @@ fi
 # 3) Run backend API
 cd backend
 echo "🚀 Running FastAPI server at http://localhost:8000/docs"
+# Set PYTHONPATH to include the backend directory so imports work correctly
+export PYTHONPATH="${PWD}:${PYTHONPATH}"
 exec uvicorn app.main:app --reload --port 8000
 

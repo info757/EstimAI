@@ -11,6 +11,7 @@ from .routes_projects import router as projects_router
 from .routes_jobs import router as jobs_router
 from .routes_review import router as review_router
 from .routes_auth import router as auth_router
+from .routes_files import router as files_router
 import os
 
 r = APIRouter()
@@ -18,6 +19,7 @@ r.include_router(auth_router)
 r.include_router(projects_router)
 r.include_router(jobs_router)
 r.include_router(review_router)
+r.include_router(files_router)
 
 # Vector takeoff (optional, can be disabled via env)
 ENABLE_VECTOR = os.getenv("VECTOR_TAKEOFF", "true").lower() == "true"
