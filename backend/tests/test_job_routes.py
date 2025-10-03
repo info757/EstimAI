@@ -5,8 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from app.main import app
-from app.services.jobs import create_job
+from backend.app.main import app
+from backend.app.services.jobs import create_job
 
 client = TestClient(app)
 

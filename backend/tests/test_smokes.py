@@ -6,8 +6,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from app.main import app
-from app.core.config import get_settings
+from backend.app.main import app
+from backend.app.core.config import get_settings
 
 
 @pytest.fixture

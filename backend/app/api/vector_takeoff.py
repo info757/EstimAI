@@ -4,14 +4,14 @@ from pydantic import BaseModel
 import tempfile, shutil, math
 from typing import List, Optional, Literal, Dict, Any
 
-from vpdf.extract import extract_lines
-from vpdf.scale import detect_scale_bar_ft_per_unit
-from vpdf.measure import curb_length_lf
-from vpdf.classify import classify_lines, classify_areas
-from vpdf.legend import LegendParser, LegendBasedClassifier
-from vpdf.llm_classifier import LLMGeometryClassifier
-from vpdf.llm_client import LLMClient
-from vpdf.config import load_config
+from backend.vpdf.extract import extract_lines
+from backend.vpdf.scale import detect_scale_bar_ft_per_unit
+from backend.vpdf.measure import curb_length_lf
+from backend.vpdf.classify import classify_lines, classify_areas
+from backend.vpdf.legend import LegendParser, LegendBasedClassifier
+from backend.vpdf.llm_classifier import LLMGeometryClassifier
+from backend.vpdf.llm_client import LLMClient
+from backend.vpdf.config import load_config
 import fitz  # PyMuPDF
 
 router = APIRouter(prefix="/takeoff", tags=["takeoff"])

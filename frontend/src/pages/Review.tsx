@@ -18,11 +18,14 @@ type Report = {
 };
 
 export default function Review() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const file = params.get("file") || "";
   const page = Number(params.get("page") || "1");
   const [rows, setRows] = useState<Row[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+
+  console.log("Review component loaded", { file, page });
 
   async function refresh() {
     const res = await fetch(`${API}/v1/counts?file=${encodeURIComponent(file)}&page=${page}`);
@@ -47,15 +50,89 @@ export default function Review() {
     setReport(await res.json());
   }
 
+  async function runTakeoff() {
+    if (!file) {
+      alert("Please enter a file name first");
+      return;
+    }
+    
+    setIsRunning(true);
+    try {
+      const res = await fetch(`${API}/v1/detect?file=${encodeURIComponent(file)}&page=${page - 1}&points_per_foot=50.0`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        await refresh(); // Refresh the data after detection
+      } else {
+        const error = await res.text();
+        alert(`Detection failed: ${error}`);
+      }
+    } catch (error) {
+      alert(`Detection error: ${error}`);
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  function setFile(newFile: string) {
+    setParams({ file: newFile, page: page.toString() });
+  }
+
+  function setPage(newPage: number) {
+    setParams({ file, page: newPage.toString() });
+  }
+
   useEffect(() => { refresh(); }, [file, page]);
 
   return (
     <div style={{ padding: 16, maxWidth: 1100, margin: "0 auto" }}>
       <h2>Takeoff Review</h2>
-      <div style={{ marginBottom: 10, color: "#475569" }}>
-        <strong>File:</strong> {file} &nbsp;•&nbsp; <strong>Page:</strong> {page}
-        <button onClick={refresh} style={{ marginLeft: 12 }}>Refresh</button>
-        <button onClick={commit} style={{ marginLeft: 8 }}>Commit Review</button>
+      
+      {/* File and Page Input */}
+      <div style={{ marginBottom: 20, padding: 16, backgroundColor: "#f8fafc", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: "block", marginBottom: 4, fontWeight: "bold" }}>File:</label>
+          <input 
+            type="text" 
+            value={file} 
+            onChange={e => setFile(e.target.value)}
+            placeholder="e.g., 280-utility-construction-plans.pdf"
+            style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 4 }}
+          />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: "block", marginBottom: 4, fontWeight: "bold" }}>Page:</label>
+          <input 
+            type="number" 
+            value={page} 
+            onChange={e => setPage(Number(e.target.value))}
+            min="1"
+            style={{ width: 100, padding: 8, border: "1px solid #d1d5db", borderRadius: 4 }}
+          />
+        </div>
+        <div>
+          <button 
+            onClick={runTakeoff} 
+            disabled={isRunning || !file}
+            style={{ 
+              padding: "8px 16px", 
+              backgroundColor: isRunning ? "#9ca3af" : "#3b82f6", 
+              color: "white", 
+              border: "none", 
+              borderRadius: 4, 
+              cursor: isRunning ? "not-allowed" : "pointer",
+              marginRight: 8
+            }}
+          >
+            {isRunning ? "Running..." : "Run Takeoff"}
+          </button>
+          <button onClick={refresh} style={{ padding: "8px 16px", backgroundColor: "#6b7280", color: "white", border: "none", borderRadius: 4, cursor: "pointer", marginRight: 8 }}>
+            Refresh
+          </button>
+          <button onClick={commit} style={{ padding: "8px 16px", backgroundColor: "#10b981", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}>
+            Commit Review
+          </button>
+        </div>
       </div>
 
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>

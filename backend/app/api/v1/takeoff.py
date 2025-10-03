@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Tuple
 import os, math
 
-from app.services.ingest import get_ingestor
-from app.domain.dto import PageVectors, VectorPath, TextToken
+from backend.app.services.ingest import get_ingestor
+from backend.app.domain.dto import PageVectors, VectorPath, TextToken
 
 router = APIRouter(prefix="/v1")
 

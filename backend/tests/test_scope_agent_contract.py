@@ -2,8 +2,8 @@
 import asyncio
 import types
 
-from app.agents import scope_agent
-from app.models.schemas import ScopeOutput
+from backend.app.agents import scope_agent
+from backend.app.models.schemas import ScopeOutput
 
 
 def run(coro):

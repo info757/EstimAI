@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
-from vpdf.extract import extract_lines
-from vpdf.scale import detect_scale_bar_ft_per_unit
-from vpdf.measure import curb_length_lf
+from backend.vpdf.extract import extract_lines
+from backend.vpdf.scale import detect_scale_bar_ft_per_unit
+from backend.vpdf.measure import curb_length_lf
 
 ROOT = Path(__file__).resolve().parents[1]
 PDF = ROOT / "tests" / "assets" / "site_plan_warehouse_100k.pdf"

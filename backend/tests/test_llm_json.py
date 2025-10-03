@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from jsonschema import ValidationError
 
-from app.core.llm import llm_call_json
+from backend.app.core.llm import llm_call_json
 
 
 class TestLLMCallJSON:

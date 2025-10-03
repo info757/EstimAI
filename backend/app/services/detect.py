@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .raster import render_pdf_page, px_to_pdf
 from .detectors import get_detector
-from ..core.config import settings
+from backend.app.core.config import settings
 
 
 async def run_detection(pdf_path: str, page: int) -> Tuple[List[Dict], Dict]:

@@ -4,10 +4,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from .db import init_db
-from .api.v1 import detect, counts
-from .api import vector_takeoff
-from .core.config import settings
+from backend.app.db import init_db
+from backend.app.api.v1 import detect, counts
+from backend.app.api import vector_takeoff
+from backend.app.api.v1.routes.takeoff import router as takeoff_router
+from backend.app.api.v1.routes.takeoff_review import router as takeoff_review_router
+from backend.app.core.config import settings
 
 # Configure logging - INFO level in production, DEBUG available via env
 log_level = logging.DEBUG if settings.DEBUG else logging.INFO
@@ -41,6 +43,8 @@ app.mount("/files", StaticFiles(directory=str(settings.get_files_dir()), html=Fa
 app.include_router(detect.router, tags=["detection"])
 app.include_router(counts.router, tags=["counts"])
 app.include_router(vector_takeoff.router, tags=["takeoff"])
+app.include_router(takeoff_router, tags=["takeoff"])
+app.include_router(takeoff_review_router, tags=["takeoff"])
 
 @app.on_event("startup")
 async def startup_event():

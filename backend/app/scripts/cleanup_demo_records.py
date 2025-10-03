@@ -17,8 +17,8 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(backend_dir))
 
-from app.services.db import get_conn
-from app.core.paths import jobs_db_path
+from backend.app.services.db import get_conn
+from backend.app.core.paths import jobs_db_path
 
 logger = logging.getLogger(__name__)
 

@@ -4,9 +4,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.db import init_db, get_db, SessionLocal
-from app.models import CountItem, ReviewSession
-from app.core.config import settings
+from backend.app.db import init_db, get_db, SessionLocal
+from backend.app.models import CountItem, ReviewSession
+from backend.app.core.config import settings
 
 def test_db_connection():
     """Test database connection and table creation."""

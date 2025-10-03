@@ -1,23 +1,18 @@
 """Core configuration settings using Pydantic Settings v2."""
+from typing import List, Literal, Optional, Union
+from pydantic import AnyUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 from pathlib import Path
-from typing import Optional
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-    
     # Base directory for absolute paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent  # .../backend/app
     
     # Database configuration
-    DATABASE_URL: str = Field(
-        default="sqlite:///./estimai.db",
-        description="Database connection URL"
-    )
+    DATABASE_URL: str = "sqlite:///./estimai.db"
     
     # File system paths (absolute)
     FILES_DIR: Path = BASE_DIR / "files"  # .../backend/app/files
@@ -25,98 +20,70 @@ class Settings(BaseSettings):
     TEMPLATES_DIR: Path = BASE_DIR.parent / "templates"  # .../backend/templates
     
     # Detection configuration
-    DETECTOR_IMPL: str = Field(
-        default="vision_llm",
-        description="Detection implementation to use"
-    )
+    DETECTOR_IMPL: str = "vision_llm"
     
     # API configuration
-    API_V1_STR: str = Field(
-        default="/api/v1",
-        description="API v1 prefix"
-    )
-    
-    PROJECT_NAME: str = Field(
-        default="EstimAI",
-        description="Project name"
-    )
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "EstimAI"
     
     # Security settings (for future use)
-    SECRET_KEY: Optional[str] = Field(
-        default=None,
-        description="Secret key for JWT tokens"
-    )
-    
-    ALGORITHM: str = Field(
-        default="HS256",
-        description="JWT algorithm"
-    )
-    
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=30,
-        description="Access token expiration in minutes"
-    )
+    SECRET_KEY: Optional[str] = None
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # CORS settings
-    BACKEND_CORS_ORIGINS: list[str] = Field(
-        default=["http://localhost:5173"],
-        description="Allowed CORS origins"
-    )
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173"]
     
     # Debug settings
-    DEBUG: bool = Field(
-        default=False,
-        description="Enable debug logging"
-    )
+    DEBUG: bool = False
     
     # Detection settings
-    TEMPLATE_MATCHING_THRESHOLD: float = Field(
-        default=0.8,
-        description="Template matching confidence threshold"
-    )
-    
-    MAX_DETECTIONS_PER_PAGE: int = Field(
-        default=100,
-        description="Maximum detections per page"
-    )
+    TEMPLATE_MATCHING_THRESHOLD: float = 0.8
+    MAX_DETECTIONS_PER_PAGE: int = 100
     
     # File processing settings
-    MAX_FILE_SIZE_MB: int = Field(
-        default=50,
-        description="Maximum file size in MB"
-    )
-    
-    ALLOWED_FILE_EXTENSIONS: list[str] = Field(
-        default=[".pdf"],
-        description="Allowed file extensions"
-    )
+    MAX_FILE_SIZE_MB: int = 50
+    ALLOWED_FILE_EXTENSIONS: List[str] = [".pdf"]
     
     # LLM configuration
-    LLM_PROVIDER: str = Field(
-        default="openai",
-        description="LLM provider (openai, anthropic, azure, etc.)"
-    )
-    
-    VISION_MODEL: str = Field(
-        default="gpt-4o-mini",
-        description="Vision model name"
-    )
-    
-    OPENAI_API_KEY: Optional[str] = Field(
-        default=None,
-        description="OpenAI API key"
-    )
+    LLM_PROVIDER: str = "openai"
+    VISION_MODEL: str = "gpt-4o-mini"
+    OPENAI_API_KEY: Optional[str] = None
     
     # Image processing settings
-    TILE_PX: int = Field(
-        default=1024,
-        description="Tile size in pixels"
-    )
+    TILE_PX: int = 1024
+    TILE_OVERLAP_PX: int = 128
     
-    TILE_OVERLAP_PX: int = Field(
-        default=128,
-        description="Tile overlap in pixels"
+    # --- fields your .env is providing (add these) ---
+    artifact_dir: str = "backend/artifacts"
+
+    # Accept a comma-separated string or a JSON array
+    cors_origins: List[str] = ["http://localhost:5173", "http://localhost:5174"]
+
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    # allow plain strings or URLs
+    vite_api_base: Union[AnyUrl, str] = "http://localhost:8000/api"
+    vite_file_base: Union[AnyUrl, str] = "http://localhost:8000"
+
+    # --- Apryse flags we added in this thread ---
+    APR_USE_APRYSE: bool = False
+    APR_LICENSE_KEY: Optional[str] = None
+    APR_ENABLE_SMART_TABLES: bool = True
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="",        # read vars as-is
+        extra="ignore",       # ignore unknown .env keys (prevents crash)
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_cors(cls, v):
+        # Support comma-separated strings in .env:  "http://a,http://b"
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        return v
     
         
     def get_files_dir(self) -> Path:

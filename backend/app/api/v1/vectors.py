@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
-from app.services.ingest import get_ingestor
-from app.domain.dto import PageVectors
+from backend.app.services.ingest import get_ingestor
+from backend.app.domain.dto import PageVectors
 import os
 
 router = APIRouter(prefix="/v1")

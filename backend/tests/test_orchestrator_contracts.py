@@ -1,6 +1,6 @@
 import asyncio
-from app.services import orchestrator
-from app.models.schemas import TakeoffOutput
+from backend.app.services import orchestrator
+from backend.app.models.schemas import TakeoffOutput
 async def fake_takeoff_run(pid: str):
     return TakeoffOutput(project_id=pid, items=[], notes=None)
 def test_orchestrator_writes_artifact(monkeypatch, tmp_path):

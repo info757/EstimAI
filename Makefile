@@ -57,3 +57,10 @@ docker-logs:
 
 docker-restart:
 	docker compose restart
+
+# Import normalization helpers
+fix-imports:
+	python scripts/fix_imports.py --write
+
+check-imports:
+	bash scripts/check_imports.sh

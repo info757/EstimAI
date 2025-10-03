@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Import the parsers module
-from app.services.parsers import (
+from backend.app.services.parsers import (
     detect_type, parse_to_normalized, parse_csv, parse_docx, 
     parse_xlsx, parse_image_ocr, parse_pdf_stub, build_normalized
 )

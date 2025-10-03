@@ -5,8 +5,8 @@ import tempfile
 import shutil
 import os
 
-from app.services.ingest import ingest_files
-from app.core.paths import project_ingest_dir, project_ingest_raw_dir, project_ingest_parsed_dir
+from backend.app.services.ingest import ingest_files
+from backend.app.core.paths import project_ingest_dir, project_ingest_raw_dir, project_ingest_parsed_dir
 
 
 class TestIngestService:

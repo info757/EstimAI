@@ -203,3 +203,34 @@ cd frontend && npm run build
 - [ ] API docs: http://localhost:8000/docs
 - [ ] No import errors in console
 - [ ] Both services accessible
+
+## 🔧 Import Normalization
+
+We run backend as `uvicorn backend.app.main:app`.
+
+All backend imports must start with `backend.`:
+
+- ✅ `from backend.app.core.config import settings`
+- ✅ `from backend.vpdf.extract import extract_vectors`
+- ❌ `from app.core.config import settings`
+- ❌ `from vpdf.extract import extract_vectors`
+
+### Import Management Commands
+
+```bash
+# Fix imports automatically
+make fix-imports
+
+# Check for disallowed imports
+make check-imports
+
+# Manual fix with dry-run
+python scripts/fix_imports.py --dry-run
+
+# Apply changes
+python scripts/fix_imports.py --write
+```
+
+### After Adding New Files
+
+Use `make fix-imports` after adding new files to ensure consistent imports.

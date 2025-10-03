@@ -2,9 +2,9 @@ import cv2, math, json, base64
 import numpy as np
 from typing import List, Tuple
 from pathlib import Path
-from app.core.config import settings
-from app.services.llm_client import VisionLLM
-from app.services.prompts import prompt_takeoff, TYPES
+from backend.app.core.config import settings
+from backend.app.services.llm_client import VisionLLM
+from backend.app.services.prompts import prompt_takeoff, TYPES
 
 # ---- helpers (local to this file to keep things simple)
 

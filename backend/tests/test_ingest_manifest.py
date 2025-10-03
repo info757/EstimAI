@@ -5,9 +5,9 @@ from pathlib import Path
 from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.services.ingest import ingest_files, get_ingest_manifest, load_ingest_manifest
-from app.core.paths import project_ingest_dir, project_ingest_manifest
+from backend.app.main import app
+from backend.app.services.ingest import ingest_files, get_ingest_manifest, load_ingest_manifest
+from backend.app.core.paths import project_ingest_dir, project_ingest_manifest
 
 
 class TestIngestManifest:

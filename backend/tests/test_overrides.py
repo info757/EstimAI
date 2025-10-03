@@ -7,7 +7,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from app.services.overrides import (
+from backend.app.services.overrides import (
     overrides_dir,
     ensure_overrides_dir,
     load_overrides,

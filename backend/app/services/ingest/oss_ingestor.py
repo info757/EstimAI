@@ -1,5 +1,5 @@
 import fitz
-from app.domain.dto import PageVectors, VectorPath, TextToken
+from backend.app.domain.dto import PageVectors, VectorPath, TextToken
 
 class OpenSourceIngestor:
     def get_page_count(self, pdf_path: str) -> int:

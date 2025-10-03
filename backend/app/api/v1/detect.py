@@ -1,18 +1,18 @@
 """Detection API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func, literal
 from typing import List, Dict, Any
 import uuid
 from pathlib import Path
 import math
 
-from ...db import get_db
-from ...schemas import DetectResponse, DetectItem
-from ...models import CountItem as CountItemModel, CountStatus
-from ...deps import get_current_user
-from ...services.detect import run_detection
-from ...core.config import settings
+from backend.app.db import get_db
+from backend.app.schemas import DetectResponse, DetectItem
+from backend.app.models import CountItem as CountItemModel, CountStatus
+from backend.app.deps import get_current_user
+from backend.app.services.detect import run_detection
+from backend.app.core.config import settings
 
 router = APIRouter(prefix="/v1")
 
@@ -51,6 +51,11 @@ async def detect_counts(
         
         for hit in hits:
             # Check for existing pending item within 10 points
+            # Use SQLAlchemy func.pow instead of ** for distance calculation
+            dx = CountItemModel.x_pdf - hit["x_pdf"]
+            dy = CountItemModel.y_pdf - hit["y_pdf"]
+            dist2 = func.pow(dx, 2) + func.pow(dy, 2)
+            
             existing = db.query(CountItemModel).filter(
                 and_(
                     CountItemModel.file == file,
@@ -58,10 +63,10 @@ async def detect_counts(
                     CountItemModel.type == hit["type"],
                     CountItemModel.status == CountStatus.PENDING,
                     # Distance check: sqrt((x1-x2)^2 + (y1-y2)^2) <= 10
-                    (
-                        (CountItemModel.x_pdf - hit["x_pdf"]) ** 2 + 
-                        (CountItemModel.y_pdf - hit["y_pdf"]) ** 2
-                    ) <= 100  # 10^2 = 100
+                    # Optional: cheap bounding box prefilter for speed
+                    func.abs(dx) <= 10,
+                    func.abs(dy) <= 10,
+                    dist2 <= literal(100)  # 10^2 = 100
                 )
             ).first()
             

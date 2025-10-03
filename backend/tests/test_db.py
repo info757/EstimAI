@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from app.services.db import (
+from backend.app.services.db import (
     get_conn, create_job, update_job, get_job, 
     list_jobs, delete_job, get_job_count
 )

@@ -12,9 +12,9 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime, timezone
 
-from app.services.jobs import create_job, load_job, update_job
-from app.services.db import get_job as db_get_job, delete_job
-from app.models.jobs import JobStatus
+from backend.app.services.jobs import create_job, load_job, update_job
+from backend.app.services.db import get_job as db_get_job, delete_job
+from backend.app.models.jobs import JobStatus
 
 
 @pytest.fixture

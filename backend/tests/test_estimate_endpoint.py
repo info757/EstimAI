@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 # TODO: If your app import path differs, adjust this import:
-from app.main import app  # expects app/main.py exposing FastAPI instance `app`
+from backend.app.main import app  # expects app/main.py exposing FastAPI instance `app`
 
 
 client = TestClient(app)

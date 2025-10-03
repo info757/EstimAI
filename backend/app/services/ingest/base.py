@@ -1,5 +1,5 @@
 from typing import Protocol
-from app.domain.dto import PageVectors
+from backend.app.domain.dto import PageVectors
 
 class Ingestor(Protocol):
     def get_page_count(self, pdf_path: str) -> int: ...

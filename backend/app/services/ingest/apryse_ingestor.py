@@ -1,4 +1,4 @@
-from app.domain.dto import PageVectors, VectorPath, TextToken
+from backend.app.domain.dto import PageVectors, VectorPath, TextToken
 from typing import List, Tuple
 
 # Adjust these imports to your installed binding:
