@@ -1,7 +1,7 @@
 from __future__ import annotations
 import hashlib, json
 from typing import Iterable, Dict, Any, List, Optional
-from backend.app.schemas.estimai import EstimAIResult, Pipe, Node
+from backend.app.schemas_estimai import EstimAIResult, Pipe, Node
 # import your actual CountItemCreate / repository / session interfaces:
 # from backend.app.models.counts import CountItemCreate
 # from backend.app.services.counts_repo import CountsRepo

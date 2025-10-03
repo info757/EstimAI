@@ -1,15 +1,15 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field, field_validator
-from typing import Literal, Optional, List, Dict
+from typing import Optional, List, Dict, Literal
+from pydantic import BaseModel, Field
 
 Units = Literal["ft", "m"]
 
 class Node(BaseModel):
     id: str
-    kind: Literal["inlet","junction","manhole","hydrant","valve","unknown"]
+    kind: Literal["inlet","junction","manhole","hydrant","valve","unknown"] = "unknown"
     x: float
     y: float
-    attrs: Dict[str, str|float|int|bool] = Field(default_factory=dict)
+    attrs: Dict[str, float | int | str | bool] = Field(default_factory=dict)
 
 class Pipe(BaseModel):
     id: str
@@ -18,11 +18,8 @@ class Pipe(BaseModel):
     length_ft: float
     dia_in: Optional[float] = None
     mat: Optional[str] = None
-    slope: Optional[float] = None     # fraction (0.006), not percent
+    slope: Optional[float] = None  # fraction (e.g., 0.006)
     avg_depth_ft: Optional[float] = None
-
-class Structures(BaseModel):
-    items: List[Node] = Field(default_factory=list)
 
 class StormNetwork(BaseModel):
     pipes: List[Pipe] = Field(default_factory=list)
@@ -44,7 +41,7 @@ class Roadway(BaseModel):
 class ESC(BaseModel):
     silt_fence_lf: float = 0.0
     inlet_protection_ea: int = 0
-    entrances: List[Dict[str, float]] = Field(default_factory=list)  # {length_ft, width_ft}
+    entrances: List[Dict[str, float]] = Field(default_factory=list)
 
 class Earthwork(BaseModel):
     cut_cy: Optional[float] = None
@@ -61,21 +58,8 @@ class QAFlag(BaseModel):
 class EstimAIResult(BaseModel):
     sheet_units: Units = "ft"
     scale: Optional[str] = None
-    networks: Dict[str, object]  # {"storm": StormNetwork, "sanitary":..., "water":...}
+    networks: Dict[str, object] = Field(default_factory=dict)  # storm/sanitary/water objects
     roadway: Roadway = Roadway()
     e_sc: ESC = ESC()
     earthwork: Earthwork = Earthwork()
     qa_flags: List[QAFlag] = Field(default_factory=list)
-
-    @field_validator("networks")
-    @classmethod
-    def coerce_networks(cls, v):
-        # tolerate partial payloads while keeping types downstream predictable
-        def as_storm(d): return StormNetwork(**d) if isinstance(d, dict) else d
-        def as_san(d):  return SanitaryNetwork(**d) if isinstance(d, dict) else d
-        def as_wat(d):  return WaterNetwork(**d) if isinstance(d, dict) else d
-        out = {}
-        if "storm" in v: out["storm"] = as_storm(v["storm"])
-        if "sanitary" in v: out["sanitary"] = as_san(v["sanitary"])
-        if "water" in v: out["water"] = as_wat(v["water"])
-        return out
