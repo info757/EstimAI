@@ -118,6 +118,22 @@ class Settings(BaseSettings):
         description="Tile overlap in pixels"
     )
     
+    # Apryse PDFNet configuration
+    APR_USE_APRYSE: bool = Field(
+        default=False,
+        description="Enable Apryse PDFNet integration"
+    )
+    
+    APR_LICENSE_KEY: Optional[str] = Field(
+        default=None,
+        description="Apryse PDFNet license key"
+    )
+    
+    APR_ENABLE_SMART_TABLES: bool = Field(
+        default=True,
+        description="Enable Apryse smart table extraction"
+    )
+    
         
     def get_files_dir(self) -> Path:
         """Get files directory as Path object."""

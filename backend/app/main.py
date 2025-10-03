@@ -44,9 +44,20 @@ app.include_router(vector_takeoff.router, tags=["takeoff"])
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup."""
+    """Initialize database and optional services on startup."""
     init_db()
     print("Database initialized")
+    
+    # Initialize Apryse PDFNet if enabled
+    if settings.APR_USE_APRYSE:
+        try:
+            from .services.ingest.pdfnet_runtime import init as init_pdfnet
+            init_pdfnet(settings.APR_LICENSE_KEY)
+            print("Apryse PDFNet initialized")
+        except Exception as e:
+            print(f"Warning: Failed to initialize Apryse PDFNet: {e}")
+    else:
+        print("Apryse PDFNet disabled")
 
 @app.get("/healthz")
 async def health_check():
