@@ -1,0 +1,201 @@
+{
+  "unit_costs": {
+    "33-1000": {
+      "description": "Storm Pipe - 12\" Concrete",
+      "unit": "LF",
+      "cost": 45.00,
+      "category": "storm_pipe",
+      "material": "concrete",
+      "diameter_in": 12
+    },
+    "33-1001": {
+      "description": "Storm Pipe - 15\" Concrete",
+      "unit": "LF", 
+      "cost": 55.00,
+      "category": "storm_pipe",
+      "material": "concrete",
+      "diameter_in": 15
+    },
+    "33-1002": {
+      "description": "Storm Pipe - 18\" Concrete",
+      "unit": "LF",
+      "cost": 65.00,
+      "category": "storm_pipe",
+      "material": "concrete",
+      "diameter_in": 18
+    },
+    "33-1003": {
+      "description": "Storm Pipe - 21\" Concrete",
+      "unit": "LF",
+      "cost": 75.00,
+      "category": "storm_pipe",
+      "material": "concrete",
+      "diameter_in": 21
+    },
+    "33-1004": {
+      "description": "Storm Pipe - 24\" Concrete",
+      "unit": "LF",
+      "cost": 85.00,
+      "category": "storm_pipe",
+      "material": "concrete",
+      "diameter_in": 24
+    },
+    "33-2000": {
+      "description": "Sanitary Pipe - 8\" PVC",
+      "unit": "LF",
+      "cost": 25.00,
+      "category": "sanitary_pipe",
+      "material": "pvc",
+      "diameter_in": 8
+    },
+    "33-2001": {
+      "description": "Sanitary Pipe - 10\" PVC",
+      "unit": "LF",
+      "cost": 30.00,
+      "category": "sanitary_pipe",
+      "material": "pvc",
+      "diameter_in": 10
+    },
+    "33-2002": {
+      "description": "Sanitary Pipe - 12\" PVC",
+      "unit": "LF",
+      "cost": 35.00,
+      "category": "sanitary_pipe",
+      "material": "pvc",
+      "diameter_in": 12
+    },
+    "33-2003": {
+      "description": "Sanitary Pipe - 15\" PVC",
+      "unit": "LF",
+      "cost": 40.00,
+      "category": "sanitary_pipe",
+      "material": "pvc",
+      "diameter_in": 15
+    },
+    "33-3000": {
+      "description": "Water Pipe - 6\" Ductile Iron",
+      "unit": "LF",
+      "cost": 35.00,
+      "category": "water_pipe",
+      "material": "ductile_iron",
+      "diameter_in": 6
+    },
+    "33-3001": {
+      "description": "Water Pipe - 8\" Ductile Iron",
+      "unit": "LF",
+      "cost": 40.00,
+      "category": "water_pipe",
+      "material": "ductile_iron",
+      "diameter_in": 8
+    },
+    "33-3002": {
+      "description": "Water Pipe - 10\" Ductile Iron",
+      "unit": "LF",
+      "cost": 45.00,
+      "category": "water_pipe",
+      "material": "ductile_iron",
+      "diameter_in": 10
+    },
+    "33-3003": {
+      "description": "Water Pipe - 12\" Ductile Iron",
+      "unit": "LF",
+      "cost": 50.00,
+      "category": "water_pipe",
+      "material": "ductile_iron",
+      "diameter_in": 12
+    },
+    "33-4000": {
+      "description": "Trench Excavation - 0-5ft depth",
+      "unit": "CY",
+      "cost": 15.00,
+      "category": "trench_excavation",
+      "depth_bucket": "0-5"
+    },
+    "33-4001": {
+      "description": "Trench Excavation - 5-8ft depth",
+      "unit": "CY",
+      "cost": 18.00,
+      "category": "trench_excavation",
+      "depth_bucket": "5-8"
+    },
+    "33-4002": {
+      "description": "Trench Excavation - 8-12ft depth",
+      "unit": "CY",
+      "cost": 22.00,
+      "category": "trench_excavation",
+      "depth_bucket": "8-12"
+    },
+    "33-4003": {
+      "description": "Trench Excavation - 12+ft depth",
+      "unit": "CY",
+      "cost": 28.00,
+      "category": "trench_excavation",
+      "depth_bucket": "12+"
+    },
+    "33-5000": {
+      "description": "Manhole - 4ft Diameter",
+      "unit": "EA",
+      "cost": 2500.00,
+      "category": "structure",
+      "structure_type": "manhole",
+      "diameter_ft": 4
+    },
+    "33-5001": {
+      "description": "Inlet - Type A",
+      "unit": "EA",
+      "cost": 800.00,
+      "category": "structure",
+      "structure_type": "inlet"
+    },
+    "33-5002": {
+      "description": "Valve - Gate Valve",
+      "unit": "EA",
+      "cost": 450.00,
+      "category": "structure",
+      "structure_type": "valve"
+    },
+    "33-5003": {
+      "description": "Hydrant - Fire Hydrant",
+      "unit": "EA",
+      "cost": 1200.00,
+      "category": "structure",
+      "structure_type": "hydrant"
+    },
+    "33-6000": {
+      "description": "Curb - Concrete",
+      "unit": "LF",
+      "cost": 12.00,
+      "category": "sitework",
+      "type": "curb",
+      "material": "concrete"
+    },
+    "33-6001": {
+      "description": "Sidewalk - Concrete",
+      "unit": "SF",
+      "cost": 8.50,
+      "category": "sitework",
+      "type": "sidewalk",
+      "material": "concrete"
+    },
+    "33-6002": {
+      "description": "Silt Fence",
+      "unit": "LF",
+      "cost": 3.50,
+      "category": "sitework",
+      "type": "silt_fence"
+    }
+  },
+  "markup_percent": 15.0,
+  "labor_factor": 1.25,
+  "equipment_factor": 1.15,
+  "overhead_percent": 10.0,
+  "profit_percent": 8.0,
+  "notes": {
+    "unit_costs": "Base unit costs in USD, includes material and basic labor",
+    "markup_percent": "Additional markup for project complexity and risk",
+    "labor_factor": "Multiplier for labor-intensive work",
+    "equipment_factor": "Multiplier for equipment requirements",
+    "overhead_percent": "General overhead and administrative costs",
+    "profit_percent": "Contractor profit margin"
+  }
+}

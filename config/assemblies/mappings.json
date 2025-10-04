@@ -1,0 +1,110 @@
+{
+  "pipe_mappings": {
+    "storm": {
+      "12": "33-1000",
+      "15": "33-1001",
+      "18": "33-1002",
+      "21": "33-1003",
+      "24": "33-1004",
+      "30": "33-1005",
+      "36": "33-1006"
+    },
+    "sanitary": {
+      "8": "33-2000",
+      "10": "33-2001",
+      "12": "33-2002",
+      "15": "33-2003",
+      "18": "33-2004",
+      "21": "33-2005",
+      "24": "33-2006"
+    },
+    "water": {
+      "6": "33-3000",
+      "8": "33-3001",
+      "10": "33-3002",
+      "12": "33-3003",
+      "14": "33-3004",
+      "16": "33-3005",
+      "18": "33-3006"
+    }
+  },
+  "trench_mappings": {
+    "0-5": "33-4000",
+    "5-8": "33-4001",
+    "8-12": "33-4002",
+    "12+": "33-4003"
+  },
+  "structure_mappings": {
+    "manhole": "33-5000",
+    "inlet": "33-5001",
+    "valve": "33-5002",
+    "hydrant": "33-5003",
+    "junction": "33-5004",
+    "outfall": "33-5005"
+  },
+  "sitework_mappings": {
+    "curb": "33-6000",
+    "sidewalk": "33-6001",
+    "silt_fence": "33-6002",
+    "guardrail": "33-6003",
+    "signage": "33-6004"
+  },
+  "earthwork_mappings": {
+    "cut": "33-7000",
+    "fill": "33-7001",
+    "undercut": "33-7002",
+    "compaction": "33-7003"
+  },
+  "depth_buckets": {
+    "0-5": {
+      "min_depth": 0,
+      "max_depth": 5,
+      "description": "Shallow excavation"
+    },
+    "5-8": {
+      "min_depth": 5,
+      "max_depth": 8,
+      "description": "Medium depth excavation"
+    },
+    "8-12": {
+      "min_depth": 8,
+      "max_depth": 12,
+      "description": "Deep excavation"
+    },
+    "12+": {
+      "min_depth": 12,
+      "max_depth": null,
+      "description": "Very deep excavation"
+    }
+  },
+  "material_mappings": {
+    "concrete": {
+      "storm": "33-1000",
+      "sanitary": "33-2000",
+      "water": "33-3000"
+    },
+    "pvc": {
+      "storm": "33-1000",
+      "sanitary": "33-2000",
+      "water": "33-3000"
+    },
+    "ductile_iron": {
+      "storm": "33-1000",
+      "sanitary": "33-2000",
+      "water": "33-3000"
+    },
+    "hdp": {
+      "storm": "33-1000",
+      "sanitary": "33-2000",
+      "water": "33-3000"
+    }
+  },
+  "notes": {
+    "csi_codes": "Construction Specifications Institute codes for standardized pricing",
+    "pipe_mappings": "Maps pipe diameter to CSI code by utility type",
+    "trench_mappings": "Maps depth buckets to excavation CSI codes",
+    "structure_mappings": "Maps structure types to CSI codes",
+    "sitework_mappings": "Maps sitework items to CSI codes",
+    "depth_buckets": "Standard depth ranges for excavation pricing"
+  }
+}
