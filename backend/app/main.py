@@ -10,6 +10,7 @@ from backend.app.api import vector_takeoff
 from backend.app.api.v1.routes.takeoff import router as takeoff_router
 from backend.app.api.v1.routes.takeoff_review import router as takeoff_review_router
 from backend.app.api.v1.routes.debug_validate import router as debug_validate_router
+from backend.app.api.v1.routes.agent_takeoff import router as agent_takeoff_router
 from backend.app.core.config import settings
 
 # Configure logging - INFO level in production, DEBUG available via env
@@ -47,6 +48,7 @@ app.include_router(vector_takeoff.router, tags=["takeoff"])
 app.include_router(takeoff_router, tags=["takeoff"])
 app.include_router(takeoff_review_router, tags=["takeoff"])
 app.include_router(debug_validate_router, tags=["debug"])
+app.include_router(agent_takeoff_router, tags=["agent"])
 
 @app.on_event("startup")
 async def startup_event():

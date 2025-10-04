@@ -1,0 +1,226 @@
+{
+  "session_id": "test-session-123",
+  "status": "completed",
+  "proposed_review": {
+    "session_id": "test-session-123",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "networks": {
+      "storm": {
+        "pipes": [
+          {
+            "id": "storm-pipe-1",
+            "points": [[0, 0], [100, 0], [200, 0]],
+            "length_ft": 200.0,
+            "dia_in": 12.0,
+            "mat": "concrete",
+            "avg_depth_ft": 4.5,
+            "extra": {
+              "min_depth_ft": 3.2,
+              "max_depth_ft": 5.8,
+              "p95_depth_ft": 5.5,
+              "buckets_lf": {
+                "0-5": 150.0,
+                "5-8": 50.0,
+                "8-12": 0.0,
+                "12+": 0.0
+              },
+              "trench_volume_cy": 25.5,
+              "cover_ok": true,
+              "deep_excavation": false
+            }
+          },
+          {
+            "id": "storm-pipe-2",
+            "points": [[200, 0], [300, 0], [400, 0]],
+            "length_ft": 200.0,
+            "dia_in": 15.0,
+            "mat": "concrete",
+            "avg_depth_ft": 6.2,
+            "extra": {
+              "min_depth_ft": 5.1,
+              "max_depth_ft": 7.3,
+              "p95_depth_ft": 7.0,
+              "buckets_lf": {
+                "0-5": 0.0,
+                "5-8": 180.0,
+                "8-12": 20.0,
+                "12+": 0.0
+              },
+              "trench_volume_cy": 32.8,
+              "cover_ok": true,
+              "deep_excavation": false
+            }
+          }
+        ],
+        "nodes": [
+          {
+            "id": "storm-node-1",
+            "x": 0.0,
+            "y": 0.0,
+            "type": "inlet",
+            "attrs": {
+              "diameter": 12.0,
+              "material": "concrete"
+            }
+          },
+          {
+            "id": "storm-node-2",
+            "x": 400.0,
+            "y": 0.0,
+            "type": "outfall",
+            "attrs": {
+              "diameter": 15.0,
+              "material": "concrete"
+            }
+          }
+        ]
+      },
+      "sanitary": {
+        "pipes": [
+          {
+            "id": "sanitary-pipe-1",
+            "points": [[0, 100], [100, 100], [200, 100]],
+            "length_ft": 200.0,
+            "dia_in": 8.0,
+            "mat": "PVC",
+            "avg_depth_ft": 5.8,
+            "extra": {
+              "min_depth_ft": 4.5,
+              "max_depth_ft": 7.1,
+              "p95_depth_ft": 6.8,
+              "buckets_lf": {
+                "0-5": 0.0,
+                "5-8": 200.0,
+                "8-12": 0.0,
+                "12+": 0.0
+              },
+              "trench_volume_cy": 18.2,
+              "cover_ok": true,
+              "deep_excavation": false
+            }
+          }
+        ],
+        "nodes": [
+          {
+            "id": "sanitary-node-1",
+            "x": 0.0,
+            "y": 100.0,
+            "type": "manhole",
+            "attrs": {
+              "diameter": 4.0,
+              "material": "concrete"
+            }
+          },
+          {
+            "id": "sanitary-node-2",
+            "x": 200.0,
+            "y": 100.0,
+            "type": "manhole",
+            "attrs": {
+              "diameter": 4.0,
+              "material": "concrete"
+            }
+          }
+        ]
+      },
+      "water": {
+        "pipes": [
+          {
+            "id": "water-pipe-1",
+            "points": [[0, 200], [150, 200], [300, 200]],
+            "length_ft": 300.0,
+            "dia_in": 6.0,
+            "mat": "ductile_iron",
+            "avg_depth_ft": 3.8,
+            "extra": {
+              "min_depth_ft": 3.2,
+              "max_depth_ft": 4.4,
+              "p95_depth_ft": 4.2,
+              "buckets_lf": {
+                "0-5": 300.0,
+                "5-8": 0.0,
+                "8-12": 0.0,
+                "12+": 0.0
+              },
+              "trench_volume_cy": 12.6,
+              "cover_ok": true,
+              "deep_excavation": false
+            }
+          }
+        ],
+        "nodes": [
+          {
+            "id": "water-node-1",
+            "x": 0.0,
+            "y": 200.0,
+            "type": "valve",
+            "attrs": {
+              "diameter": 6.0,
+              "material": "ductile_iron"
+            }
+          },
+          {
+            "id": "water-node-2",
+            "x": 300.0,
+            "y": 200.0,
+            "type": "valve",
+            "attrs": {
+              "diameter": 6.0,
+              "material": "ductile_iron"
+            }
+          }
+        ]
+      }
+    },
+    "roadway": {
+      "curb_lf": 1200.0,
+      "sidewalk_sf": 2400.0,
+      "silt_fence_lf": 800.0
+    },
+    "esc": {
+      "inlet_protections": 8
+    },
+    "earthwork": {
+      "tables": {
+        "cut_cy": 150.0,
+        "fill_cy": 120.0,
+        "source": "tables"
+      },
+      "surface": null
+    },
+    "qa_flags": [
+      {
+        "code": "STORM_COVER_LOW",
+        "message": "Storm pipe cover 2.1ft < required 1.5ft",
+        "geom_id": "storm-pipe-1"
+      }
+    ]
+  },
+  "summary": {
+    "session_id": "test-session-123",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "networks": {
+      "storm": {
+        "pipes": 2,
+        "nodes": 2
+      },
+      "sanitary": {
+        "pipes": 1,
+        "nodes": 2
+      },
+      "water": {
+        "pipes": 1,
+        "nodes": 2
+      }
+    },
+    "quantities": {
+      "curb_lf": 1200.0,
+      "sidewalk_sf": 2400.0,
+      "silt_fence_lf": 800.0,
+      "inlet_protections": 8
+    },
+    "qa_flags": 1
+  },
+  "error_message": null,
+  "processing_time": 45.2
+}
