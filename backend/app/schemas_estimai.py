@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Literal
+from typing import Optional, List, Dict, Literal, Any
 from pydantic import BaseModel, Field
 
 Units = Literal["ft", "m"]
@@ -20,6 +20,7 @@ class Pipe(BaseModel):
     mat: Optional[str] = None
     slope: Optional[float] = None  # fraction (e.g., 0.006)
     avg_depth_ft: Optional[float] = None
+    extra: Optional[Dict[str, Any]] = None
 
 class StormNetwork(BaseModel):
     pipes: List[Pipe] = Field(default_factory=list)
