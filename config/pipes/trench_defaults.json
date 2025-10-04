@@ -1,0 +1,10 @@
+{
+  "bedding_clearance_ft": 0.5,
+  "side_slope_m_per_ft": 0.5,
+  "use_shoring_box": true,
+  "min_cover_ft": {
+    "water": 3.0,
+    "sewer": 2.5,
+    "storm": 1.5
+  }
+}
