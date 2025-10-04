@@ -113,7 +113,7 @@ def sample_depth_along_run(
         return []
     
     # Get pipe outside diameter
-    od_ft = od_ft(material, dia_in)
+    pipe_od_ft = od_ft(material, dia_in)
     
     # Calculate trench parameters
     bedding_clearance = _trench_defaults.get("bedding_clearance_ft", 0.5)
@@ -132,12 +132,12 @@ def sample_depth_along_run(
         
         # Calculate depth and cover
         depth_ft = ground_ft - invert_ft
-        cover_ft = depth_ft - (od_ft / 2)  # Cover to pipe crown
+        cover_ft = depth_ft - (pipe_od_ft / 2)  # Cover to pipe crown
         
         # Calculate trench dimensions
-        trench_width_ft = od_ft + (2 * bedding_clearance)
+        trench_width_ft = pipe_od_ft + (2 * bedding_clearance)
         trench_area_sf = _calculate_trench_area(
-            od_ft, depth_ft, bedding_clearance, side_slope
+            pipe_od_ft, depth_ft, bedding_clearance, side_slope
         )
         
         samples.append(DepthSample(

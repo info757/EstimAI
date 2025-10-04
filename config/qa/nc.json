@@ -1,0 +1,11 @@
+{
+  "min_cover_ft": {
+    "sewer": 2.5,
+    "water": 3.0,
+    "storm": 1.5
+  },
+  "deep_excavation_threshold_ft": 12.0,
+  "ada_ramp_slope_max": 0.083,
+  "ada_ramp_width_min": 4.0,
+  "schedule_tolerance_percent": 5.0
+}
