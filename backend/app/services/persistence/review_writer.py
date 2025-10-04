@@ -89,18 +89,18 @@ def estimai_to_count_items(payload: EstimAIResult, sheet: Optional[str]=None) ->
     out: List[Dict[str, Any]] = []
     nets = payload.networks
 
-    if "storm" in nets:
-        out += _pipe_to_count_items(nets["storm"].pipes, "storm_pipe", sheet)
-        out += _nodes_to_count_items(nets["storm"].structures, "inlet", "EA", sheet)
+    if nets.storm:
+        out += _pipe_to_count_items(nets.storm.pipes, "storm_pipe", sheet)
+        out += _nodes_to_count_items(nets.storm.structures, "inlet", "EA", sheet)
 
-    if "sanitary" in nets:
-        out += _pipe_to_count_items(nets["sanitary"].pipes, "sanitary_pipe", sheet)
-        out += _nodes_to_count_items(nets["sanitary"].manholes, "manhole", "EA", sheet)
+    if nets.sanitary:
+        out += _pipe_to_count_items(nets.sanitary.pipes, "sanitary_pipe", sheet)
+        out += _nodes_to_count_items(nets.sanitary.manholes, "manhole", "EA", sheet)
 
-    if "water" in nets:
-        out += _pipe_to_count_items(nets["water"].pipes, "water_pipe", sheet)
-        out += _nodes_to_count_items(nets["water"].hydrants, "hydrant", "EA", sheet)
-        out += _nodes_to_count_items(nets["water"].valves, "valve", "EA", sheet)
+    if nets.water:
+        out += _pipe_to_count_items(nets.water.pipes, "water_pipe", sheet)
+        out += _nodes_to_count_items(nets.water.hydrants, "hydrant", "EA", sheet)
+        out += _nodes_to_count_items(nets.water.valves, "valve", "EA", sheet)
 
     # Roadway / E&SC "rollups" as separate count categories
     if payload.roadway.curb_lf:
