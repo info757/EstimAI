@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 from backend.app.services.detectors.depth import (
     sample_depth_along_run, summarize_depth, init_depth_config
 )
+from backend.app.services.detectors.qa_rules import validate_pipe_qa
 
 
 class Pipe:
@@ -110,19 +111,30 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict]) -> Dict[str, An
     # Attach labels and perform depth analysis
     pipes_with_depth = attach_labels(pipes, texts)
     
+    # Convert pipes to dict format and add QA flags
+    pipe_dicts = []
+    qa_flags = []
+    
+    for p in pipes_with_depth:
+        pipe_dict = {
+            "id": p.id,
+            "from_id": p.from_id,
+            "to_id": p.to_id,
+            "length_ft": p.length_ft,
+            "dia_in": p.dia_in,
+            "mat": p.mat,
+            "avg_depth_ft": p.avg_depth_ft,
+            "extra": p.extra
+        }
+        
+        # Validate pipe for QA issues
+        pipe_qa_flags = validate_pipe_qa(pipe_dict, "storm")
+        qa_flags.extend(pipe_qa_flags)
+        
+        pipe_dicts.append(pipe_dict)
+    
     return {
         "nodes": nodes,
-        "pipes": [
-            {
-                "id": p.id,
-                "from_id": p.from_id,
-                "to_id": p.to_id,
-                "length_ft": p.length_ft,
-                "dia_in": p.dia_in,
-                "mat": p.mat,
-                "avg_depth_ft": p.avg_depth_ft,
-                "extra": p.extra
-            }
-            for p in pipes_with_depth
-        ]
+        "pipes": pipe_dicts,
+        "qa_flags": qa_flags
     }
