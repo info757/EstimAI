@@ -151,7 +151,56 @@ def estimai_to_count_items(payload: EstimAIResult, sheet: Optional[str]=None) ->
 
     return out
 
-def upsert_counts(session_id: str, items: List[Dict[str, Any]], repo) -> Dict[str, int]:
+
+def upsert_counts(session_id: str, items: List[Dict[str, Any]], db_session) -> None:
+    """
+    Upsert count items into the database.
+    
+    Args:
+        session_id: Session ID for grouping items
+        items: List of count item dictionaries
+        db_session: SQLAlchemy database session
+    """
+    from backend.app.models import CountItem, CountStatus
+    
+    for item in items:
+        # Create source key for deduplication
+        source_ref = item.get("source_ref", {})
+        source_key = source_ref.get("hash", f"{item['name']}_{item['category']}")
+        
+        # Check if item already exists
+        existing = db_session.query(CountItem).filter(
+            CountItem.file == session_id,
+            CountItem.type == item["category"]
+        ).first()
+        
+        if existing:
+            # Update existing item
+            existing.confidence = 1.0  # High confidence for EstimAI results
+            existing.x_pdf = 0.0  # Default coordinates
+            existing.y_pdf = 0.0
+            existing.points_per_foot = 1.0  # Default scale
+            existing.status = CountStatus.PENDING
+            # Update attributes in a JSON field if available
+            if hasattr(existing, 'attributes'):
+                existing.attributes = item.get("attributes", {})
+        else:
+            # Create new item
+            new_item = CountItem(
+                file=session_id,
+                page=1,  # Default page
+                type=item["category"],
+                confidence=1.0,
+                x_pdf=0.0,
+                y_pdf=0.0,
+                points_per_foot=1.0,
+                status=CountStatus.PENDING
+            )
+            db_session.add(new_item)
+    
+    db_session.commit()
+
+def upsert_counts_repo(session_id: str, items: List[Dict[str, Any]], repo) -> Dict[str, int]:
     """
     Uses your existing repository/service to upsert by the idempotency key.
     We assume your counts table supports a unique constraint on (session_id, source_hash) or similar.
