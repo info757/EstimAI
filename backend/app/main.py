@@ -12,6 +12,7 @@ from backend.app.api.v1.routes.takeoff_review import router as takeoff_review_ro
 from backend.app.api.v1.routes.debug_validate import router as debug_validate_router
 from backend.app.api.v1.routes.agent_takeoff import router as agent_takeoff_router
 from backend.app.api.v1.routes.export import router as export_router
+from backend.app.api.v1.routes.demo import router as demo_router
 from backend.app.core.config import settings
 
 # Configure logging - INFO level in production, DEBUG available via env
@@ -36,6 +37,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add security middleware
+try:
+    from backend.app.middleware.security import SecurityMiddleware
+    app.add_middleware(SecurityMiddleware)
+    print("✅ Security middleware added")
+except Exception as e:
+    print(f"⚠️ Security middleware failed to load: {e}")
+
 # Mount static files for reports
 app.mount("/reports", StaticFiles(directory=str(settings.get_reports_dir())), name="reports")
 
@@ -51,11 +60,29 @@ app.include_router(takeoff_review_router, tags=["takeoff"])
 app.include_router(debug_validate_router, tags=["debug"])
 app.include_router(agent_takeoff_router, tags=["agent"])
 app.include_router(export_router, tags=["export"])
+app.include_router(demo_router, tags=["demo"])
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and optional services on startup."""
     init_db()
+    
+    # Run database migrations
+    try:
+        from backend.app.db.migrations import run_database_migrations
+        run_database_migrations()
+        print("✅ Database migrations completed")
+    except Exception as e:
+        print(f"⚠️ Database migrations failed: {e}")
+    
+    # Initialize demo mode if enabled
+    try:
+        from backend.app.core.demo_config import get_demo_manager
+        demo_manager = get_demo_manager()
+        if demo_manager.is_demo_mode():
+            print("🎯 Demo mode enabled")
+    except Exception as e:
+        print(f"⚠️ Demo mode initialization failed: {e}")
     print("Database initialized")
     
     # Initialize depth configuration if Apryse is enabled
