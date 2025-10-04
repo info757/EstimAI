@@ -48,9 +48,20 @@ app.include_router(takeoff_review_router, tags=["takeoff"])
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup."""
+    """Initialize database and optional services on startup."""
     init_db()
     print("Database initialized")
+    
+    # Initialize depth configuration if Apryse is enabled
+    if settings.APR_USE_APRYSE:
+        try:
+            from backend.app.services.detectors import init_depth_config
+            init_depth_config()
+            print("Depth configuration initialized")
+        except Exception as e:
+            print(f"Warning: Failed to initialize depth configuration: {e}")
+    else:
+        print("Depth configuration disabled (Apryse not enabled)")
 
 @app.get("/healthz")
 async def health_check():
