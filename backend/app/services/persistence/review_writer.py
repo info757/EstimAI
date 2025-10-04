@@ -23,6 +23,37 @@ def _pipe_to_count_items(
             "avg_depth_ft": p.avg_depth_ft,
             "from_id": p.from_id, "to_id": p.to_id,
         }
+        
+        # Add depth analysis fields from extra if available
+        if hasattr(p, 'extra') and p.extra:
+            extra = p.extra
+            # Add depth statistics
+            if "min_depth_ft" in extra:
+                attrs["min_depth_ft"] = extra["min_depth_ft"]
+            if "max_depth_ft" in extra:
+                attrs["max_depth_ft"] = extra["max_depth_ft"]
+            if "p95_depth_ft" in extra:
+                attrs["p95_depth_ft"] = extra["p95_depth_ft"]
+            
+            # Add depth buckets
+            buckets = extra.get("buckets_lf", {})
+            if "0-5" in buckets:
+                attrs["d_0_5"] = buckets["0-5"]
+            if "5-8" in buckets:
+                attrs["d_5_8"] = buckets["5-8"]
+            if "8-12" in buckets:
+                attrs["d_8_12"] = buckets["8-12"]
+            if "12+" in buckets:
+                attrs["d_12_plus"] = buckets["12+"]
+            
+            # Add trench and validation fields
+            if "trench_volume_cy" in extra:
+                attrs["trench_volume_cy"] = extra["trench_volume_cy"]
+            if "cover_ok" in extra:
+                attrs["cover_ok"] = extra["cover_ok"]
+            if "deep_excavation" in extra:
+                attrs["deep_excavation"] = extra["deep_excavation"]
+        
         items.append({
             "category": category,            # e.g., "storm_pipe" | "sanitary_pipe" | "water_pipe"
             "subtype": p.mat or "unknown",
