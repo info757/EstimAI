@@ -2,13 +2,18 @@
 Sanitary network detection and analysis.
 
 This module provides functions to detect sanitary network elements and
-calculate depth-based trench analysis.
+calculate depth-based trench analysis with robust ground elevation sampling.
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple, Callable
 from backend.app.services.detectors.depth import (
     sample_depth_along_run, summarize_depth, init_depth_config
 )
 from backend.app.services.detectors.qa_rules import validate_pipe_qa
+from backend.app.services.earthwork_surface import (
+    load_surface_from_pdf, make_ground_sampler, sample_ground_along_centerline
+)
+from backend.app.services.profiles.parser import parse_profile_gl
+from shapely.geometry import LineString
 
 
 class Pipe:
@@ -59,33 +64,50 @@ def trace_edges(vectors: List[Dict], nodes: List[Dict]) -> List[Pipe]:
     return pipes
 
 
-def attach_labels(pipes: List[Pipe], texts: List[Dict]) -> List[Pipe]:
-    """Attach labels and perform depth analysis to pipes."""
+def attach_labels(pipes: List[Pipe], texts: List[Dict], 
+                 file_ref: str = None, sheet_data: Dict[str, Any] = None) -> List[Pipe]:
+    """Attach labels and perform depth analysis to pipes with robust ground elevation."""
     # Initialize depth configuration
     init_depth_config()
     
+    # Try to load surface data from PDF
+    surface = None
+    if file_ref:
+        surface = load_surface_from_pdf(file_ref)
+    
+    # Try to parse profile GL data from sheet
+    profile_gl = None
+    if sheet_data:
+        profile_gl = parse_profile_gl(sheet_data)
+    
+    # Calculate constant fallback from node elevations
+    node_elevations = [100.0, 99.5, 99.0]  # Mock node elevations
+    constant_elevation = min(node_elevations) if node_elevations else 100.0
+    
     for pipe in pipes:
-        # Create simple s-profile (station -> invert elevation)
+        # Create s-profile (station -> invert elevation)
         # In real implementation, this would come from survey data
         s_profile = [
             (0.0, 95.0),  # Start at elevation 95ft
             (1.0, 93.0)    # End at elevation 93ft (2ft drop)
         ]
         
-        # Simple ground profile function
-        # In real implementation, this would use TIN or survey data
-        def ground_at_s(station: float) -> float:
-            return 100.0 - (station * 0.5)  # Ground drops 0.5ft over run
+        # Create ground elevation sampler with fallback strategy
+        ground_sampler, ground_source = make_ground_sampler(
+            profile_gl=profile_gl,
+            surface=surface,
+            constant=constant_elevation
+        )
         
         # Sample depth along pipe run
         samples = sample_depth_along_run(
-            s_profile, ground_at_s, pipe.mat, pipe.dia_in, n_samples=20
+            s_profile, ground_sampler, pipe.mat, pipe.dia_in, n_samples=20
         )
         
         # Calculate depth summary
         summary = summarize_depth(samples, "sewer")
         
-        # Attach depth information to pipe
+        # Attach depth information to pipe with ground source tracking
         pipe.avg_depth_ft = summary.avg_depth_ft
         pipe.extra = {
             "min_depth_ft": summary.min_depth_ft,
@@ -94,13 +116,15 @@ def attach_labels(pipes: List[Pipe], texts: List[Dict]) -> List[Pipe]:
             "buckets_lf": summary.buckets_lf,
             "trench_volume_cy": summary.trench_volume_cy,
             "cover_ok": summary.cover_ok,
-            "deep_excavation": summary.deep_excavation
+            "deep_excavation": summary.deep_excavation,
+            "_ground_source": ground_source  # Track ground elevation source
         }
     
     return pipes
 
 
-def detect_sanitary_network(vectors: List[Dict], texts: List[Dict]) -> Dict[str, Any]:
+def detect_sanitary_network(vectors: List[Dict], texts: List[Dict], 
+                           file_ref: str = None, sheet_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """Main function to detect and analyze sanitary network."""
     # Detect nodes
     nodes = detect_nodes(vectors, texts)
@@ -108,8 +132,8 @@ def detect_sanitary_network(vectors: List[Dict], texts: List[Dict]) -> Dict[str,
     # Trace edges
     pipes = trace_edges(vectors, nodes)
     
-    # Attach labels and perform depth analysis
-    pipes_with_depth = attach_labels(pipes, texts)
+    # Attach labels and perform depth analysis with ground elevation data
+    pipes_with_depth = attach_labels(pipes, texts, file_ref=file_ref, sheet_data=sheet_data)
     
     # Convert pipes to dict format and add QA flags
     pipe_dicts = []
