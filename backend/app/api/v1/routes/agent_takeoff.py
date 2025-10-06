@@ -1,105 +1,143 @@
 """
-API routes for agent takeoff processing.
+Agent takeoff API endpoints.
 
-Provides endpoints for orchestrating the full takeoff pipeline
-with Apryse → LLM → Review workflow.
+Provides endpoints for automated takeoff processing workflows.
 """
-import logging
-from typing import Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+import tempfile
+import os
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
 
-from backend.app.agent.takeoff import process_takeoff_request, get_session_status, cleanup_old_sessions, TakeoffRequest, TakeoffResponse
+from backend.app.agent.takeoff import run_takeoff_agent, AgentOptions, ProposedReview
 
-
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/agent", tags=["agent"])
 
 
-class TakeoffRequestModel(BaseModel):
-    """Request model for takeoff processing."""
+class TakeoffRequest(BaseModel):
+    """Request model for agent takeoff."""
     session_id: str
     file_ref: Optional[str] = None
+    options: Optional[Dict[str, Any]] = None
 
 
-class TakeoffResponseModel(BaseModel):
-    """Response model for takeoff processing."""
-    session_id: str
-    status: str
-    proposed_review: Optional[dict] = None
-    summary: Optional[dict] = None
-    error_message: Optional[str] = None
-    processing_time: Optional[float] = None
+class TakeoffResponse(BaseModel):
+    """Response model for agent takeoff."""
+    proposed_review: ProposedReview
+    summary: Dict[str, Any]
+    warnings: List[str]
 
 
-@router.post("/takeoff", response_model=TakeoffResponseModel)
-async def post_agent_takeoff(
+@router.post("/takeoff", response_model=TakeoffResponse)
+async def agent_takeoff(
     session_id: str = Form(...),
+    file: Optional[UploadFile] = File(None),
     file_ref: Optional[str] = Form(None),
-    upload_file: Optional[UploadFile] = File(None)
+    dry_run: bool = Form(False),
+    timeout_sec: int = Form(300),
+    include_warnings: bool = Form(True),
+    force_regenerate: bool = Form(False)
 ):
     """
-    Process takeoff request with full pipeline orchestration.
+    Run agent takeoff processing workflow.
     
     Args:
-        session_id: Unique session identifier for idempotency
-        file_ref: Reference to existing file (optional)
-        upload_file: File upload (optional)
+        session_id: Unique session identifier
+        file: Uploaded PDF file
+        file_ref: Reference to existing file
+        dry_run: Return proposed payload without committing
+        timeout_sec: Processing timeout in seconds
+        include_warnings: Include warning messages
+        force_regenerate: Force regeneration even if cached
         
     Returns:
-        TakeoffResponseModel with results or error information
+        ProposedReview with complete analysis
     """
     try:
-        # Validate request
-        if not session_id:
-            raise HTTPException(status_code=400, detail="session_id is required")
-        
-        if not file_ref and not upload_file:
-            raise HTTPException(status_code=400, detail="Either file_ref or upload_file is required")
-        
-        # Handle file upload if provided
-        if upload_file:
-            # For now, save to a temporary location
-            # In production, this would be more sophisticated
-            import tempfile
-            import shutil
-            
+        # Determine file path
+        if file is not None:
+            # Save uploaded file temporarily
             with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                shutil.copyfileobj(upload_file.file, tmp_file)
-                file_ref = tmp_file.name
-                logger.info(f"Uploaded file saved to: {file_ref}")
+                content = await file.read()
+                tmp_file.write(content)
+                file_path = tmp_file.name
+        elif file_ref:
+            file_path = file_ref
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail="Either file or file_ref must be provided"
+            )
         
-        # Create request
-        request = TakeoffRequest(
-            session_id=session_id,
-            file_ref=file_ref
+        # Create agent options
+        options = AgentOptions(
+            dry_run=dry_run,
+            timeout_sec=timeout_sec,
+            include_warnings=include_warnings,
+            force_regenerate=force_regenerate
         )
         
-        # Process takeoff
-        logger.info(f"Processing takeoff request for session {session_id}")
-        response = await process_takeoff_request(request)
+        # Run agent workflow
+        proposed_review = run_takeoff_agent(session_id, file_path, options)
         
-        # Convert to response model
-        return TakeoffResponseModel(
-            session_id=response.session_id,
-            status=response.status,
-            proposed_review=response.proposed_review.dict() if response.proposed_review else None,
-            summary=response.summary,
-            error_message=response.error_message,
-            processing_time=response.processing_time
+        # Create summary
+        summary = {
+            "session_id": proposed_review.session_id,
+            "processing_time_sec": proposed_review.processing_time_sec,
+            "ground_sources": proposed_review.ground_sources,
+            "networks": {
+                "storm": {
+                    "pipes": len(proposed_review.payload.networks.storm.pipes) if proposed_review.payload.networks.storm else 0,
+                    "structures": len(proposed_review.payload.networks.storm.structures) if proposed_review.payload.networks.storm else 0
+                },
+                "sanitary": {
+                    "pipes": len(proposed_review.payload.networks.sanitary.pipes) if proposed_review.payload.networks.sanitary else 0,
+                    "manholes": len(proposed_review.payload.networks.sanitary.manholes) if proposed_review.payload.networks.sanitary else 0
+                },
+                "water": {
+                    "pipes": len(proposed_review.payload.networks.water.pipes) if proposed_review.payload.networks.water else 0,
+                    "hydrants": len(proposed_review.payload.networks.water.hydrants) if proposed_review.payload.networks.water else 0,
+                    "valves": len(proposed_review.payload.networks.water.valves) if proposed_review.payload.networks.water else 0
+                }
+            },
+            "sitework": {
+                "curb_lf": proposed_review.payload.roadway.curb_lf,
+                "sidewalk_sf": proposed_review.payload.roadway.sidewalk_sf,
+                "silt_fence_lf": proposed_review.payload.e_sc.silt_fence_lf,
+                "inlet_protection_ea": proposed_review.payload.e_sc.inlet_protection_ea
+            },
+            "earthwork": {
+                "cut_cy": proposed_review.payload.earthwork.cut_cy,
+                "fill_cy": proposed_review.payload.earthwork.fill_cy,
+                "source": proposed_review.payload.earthwork.source
+            },
+            "qa_flags": len(proposed_review.payload.qa_flags)
+        }
+        
+        return TakeoffResponse(
+            proposed_review=proposed_review,
+            summary=summary,
+            warnings=proposed_review.warnings
         )
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error processing takeoff request: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent takeoff failed: {str(e)}"
+        )
+    finally:
+        # Clean up temporary file if created
+        if file is not None and 'file_path' in locals():
+            try:
+                os.unlink(file_path)
+            except:
+                pass
 
 
 @router.get("/takeoff/{session_id}/status")
-async def get_takeoff_status(session_id: str):
+async def get_agent_status(session_id: str):
     """
-    Get status of takeoff processing session.
+    Get status of agent processing session.
     
     Args:
         session_id: Session identifier
@@ -107,62 +145,52 @@ async def get_takeoff_status(session_id: str):
     Returns:
         Session status information
     """
-    try:
-        session = get_session_status(session_id)
-        
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        return {
-            "session_id": session.session_id,
-            "status": session.status,
-            "created_at": session.created_at.isoformat(),
-            "updated_at": session.updated_at.isoformat(),
-            "retry_count": session.retry_count,
-            "error_message": session.error_message
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting session status: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    from backend.app.agent.takeoff import get_takeoff_agent
+    
+    agent = get_takeoff_agent()
+    
+    # Check if session is processing
+    is_processing = session_id in agent.processing_sessions
+    processing_time = None
+    
+    if is_processing:
+        processing_time = time.time() - agent.processing_sessions[session_id]
+    
+    # Check cache
+    cached_sessions = [key.split(':')[0] for key in agent.session_cache.keys() if key.startswith(session_id)]
+    
+    return {
+        "session_id": session_id,
+        "is_processing": is_processing,
+        "processing_time_sec": processing_time,
+        "cached_sessions": len(cached_sessions),
+        "cache_keys": cached_sessions
+    }
 
 
-@router.post("/cleanup")
-async def cleanup_sessions(max_age_hours: int = 24):
+@router.delete("/takeoff/{session_id}/cache")
+async def clear_agent_cache(session_id: str):
     """
-    Clean up old sessions.
+    Clear agent cache for session.
     
     Args:
-        max_age_hours: Maximum age of sessions to keep (default: 24 hours)
+        session_id: Session identifier
         
     Returns:
-        Number of sessions cleaned up
+        Cache clearing result
     """
-    try:
-        cleaned_count = cleanup_old_sessions(max_age_hours)
-        
-        return {
-            "message": f"Cleaned up {cleaned_count} old sessions",
-            "cleaned_count": cleaned_count
-        }
-        
-    except Exception as e:
-        logger.error(f"Error cleaning up sessions: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/health")
-async def health_check():
-    """Health check endpoint for agent service."""
-    try:
-        # Check if agent is responsive
-        return {
-            "status": "healthy",
-            "service": "agent-takeoff",
-            "active_sessions": len(get_session_status.__globals__.get('_agent', {}).sessions)
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+    from backend.app.agent.takeoff import get_takeoff_agent
+    
+    agent = get_takeoff_agent()
+    
+    # Remove cached sessions
+    keys_to_remove = [key for key in agent.session_cache.keys() if key.startswith(f"{session_id}:")]
+    
+    for key in keys_to_remove:
+        del agent.session_cache[key]
+    
+    return {
+        "session_id": session_id,
+        "cleared_keys": len(keys_to_remove),
+        "remaining_cache_size": len(agent.session_cache)
+    }
