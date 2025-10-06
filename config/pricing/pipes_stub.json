@@ -1,0 +1,82 @@
+{
+  "pipe.sanitary": {
+    "unit_price": 25.50,
+    "currency": "USD",
+    "description": "Sanitary Sewer Piping per LF"
+  },
+  "pipe.storm": {
+    "unit_price": 18.75,
+    "currency": "USD", 
+    "description": "Storm Drain Piping per LF"
+  },
+  "pipe.water": {
+    "unit_price": 32.00,
+    "currency": "USD",
+    "description": "Water Distribution Piping per LF"
+  },
+  "trench.excavation": {
+    "unit_price": 15.25,
+    "currency": "USD",
+    "description": "Trench Excavation per CY"
+  },
+  "pipe.sanitary.0_5": {
+    "unit_price": 25.50,
+    "currency": "USD",
+    "description": "Sanitary Sewer Piping (0-5ft depth) per LF"
+  },
+  "pipe.sanitary.5_8": {
+    "unit_price": 28.75,
+    "currency": "USD",
+    "description": "Sanitary Sewer Piping (5-8ft depth) per LF"
+  },
+  "pipe.sanitary.8_12": {
+    "unit_price": 32.00,
+    "currency": "USD",
+    "description": "Sanitary Sewer Piping (8-12ft depth) per LF"
+  },
+  "pipe.sanitary.12_plus": {
+    "unit_price": 38.50,
+    "currency": "USD",
+    "description": "Sanitary Sewer Piping (12+ft depth) per LF"
+  },
+  "pipe.storm.0_5": {
+    "unit_price": 18.75,
+    "currency": "USD",
+    "description": "Storm Drain Piping (0-5ft depth) per LF"
+  },
+  "pipe.storm.5_8": {
+    "unit_price": 21.25,
+    "currency": "USD",
+    "description": "Storm Drain Piping (5-8ft depth) per LF"
+  },
+  "pipe.storm.8_12": {
+    "unit_price": 24.50,
+    "currency": "USD",
+    "description": "Storm Drain Piping (8-12ft depth) per LF"
+  },
+  "pipe.storm.12_plus": {
+    "unit_price": 29.75,
+    "currency": "USD",
+    "description": "Storm Drain Piping (12+ft depth) per LF"
+  },
+  "pipe.water.0_5": {
+    "unit_price": 32.00,
+    "currency": "USD",
+    "description": "Water Distribution Piping (0-5ft depth) per LF"
+  },
+  "pipe.water.5_8": {
+    "unit_price": 35.50,
+    "currency": "USD",
+    "description": "Water Distribution Piping (5-8ft depth) per LF"
+  },
+  "pipe.water.8_12": {
+    "unit_price": 39.25,
+    "currency": "USD",
+    "description": "Water Distribution Piping (8-12ft depth) per LF"
+  },
+  "pipe.water.12_plus": {
+    "unit_price": 45.00,
+    "currency": "USD",
+    "description": "Water Distribution Piping (12+ft depth) per LF"
+  }
+}

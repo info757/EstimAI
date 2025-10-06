@@ -1,0 +1,82 @@
+{
+  "pipe.sanitary": { 
+    "csi": "33 30 00", 
+    "uom": "LF",
+    "description": "Sanitary Sewer Piping"
+  },
+  "pipe.storm": { 
+    "csi": "33 40 00", 
+    "uom": "LF",
+    "description": "Storm Drain Piping"
+  },
+  "pipe.water": { 
+    "csi": "33 10 00", 
+    "uom": "LF",
+    "description": "Water Distribution Piping"
+  },
+  "trench.excavation": { 
+    "csi": "31 23 33", 
+    "uom": "CY",
+    "description": "Trench Excavation"
+  },
+  "pipe.sanitary.0_5": {
+    "csi": "33 30 00",
+    "uom": "LF",
+    "description": "Sanitary Sewer Piping (0-5ft depth)"
+  },
+  "pipe.sanitary.5_8": {
+    "csi": "33 30 00", 
+    "uom": "LF",
+    "description": "Sanitary Sewer Piping (5-8ft depth)"
+  },
+  "pipe.sanitary.8_12": {
+    "csi": "33 30 00",
+    "uom": "LF", 
+    "description": "Sanitary Sewer Piping (8-12ft depth)"
+  },
+  "pipe.sanitary.12_plus": {
+    "csi": "33 30 00",
+    "uom": "LF",
+    "description": "Sanitary Sewer Piping (12+ft depth)"
+  },
+  "pipe.storm.0_5": {
+    "csi": "33 40 00",
+    "uom": "LF",
+    "description": "Storm Drain Piping (0-5ft depth)"
+  },
+  "pipe.storm.5_8": {
+    "csi": "33 40 00",
+    "uom": "LF", 
+    "description": "Storm Drain Piping (5-8ft depth)"
+  },
+  "pipe.storm.8_12": {
+    "csi": "33 40 00",
+    "uom": "LF",
+    "description": "Storm Drain Piping (8-12ft depth)"
+  },
+  "pipe.storm.12_plus": {
+    "csi": "33 40 00",
+    "uom": "LF",
+    "description": "Storm Drain Piping (12+ft depth)"
+  },
+  "pipe.water.0_5": {
+    "csi": "33 10 00",
+    "uom": "LF",
+    "description": "Water Distribution Piping (0-5ft depth)"
+  },
+  "pipe.water.5_8": {
+    "csi": "33 10 00",
+    "uom": "LF",
+    "description": "Water Distribution Piping (5-8ft depth)"
+  },
+  "pipe.water.8_12": {
+    "csi": "33 10 00",
+    "uom": "LF",
+    "description": "Water Distribution Piping (8-12ft depth)"
+  },
+  "pipe.water.12_plus": {
+    "csi": "33 10 00",
+    "uom": "LF",
+    "description": "Water Distribution Piping (12+ft depth)"
+  }
+}

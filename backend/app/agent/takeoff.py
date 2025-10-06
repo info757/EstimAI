@@ -244,9 +244,15 @@ class TakeoffAgent:
             # Step 5: Detect networks (storm, sanitary, water)
             logger.info("Detecting utility networks")
             
-            # Storm network
-            storm_nodes = detect_nodes(all_vectors, symbol_map, 'storm')
-            storm_edges = trace_edges(all_vectors, storm_nodes, 'storm')
+            # Import detector functions
+            from backend.app.services.detectors.storm import detect_storm_network
+            from backend.app.services.detectors.sanitary import detect_sanitary_network
+            from backend.app.services.detectors.water import detect_water_network
+            
+            # Detect networks with ground elevation data
+            storm_result = detect_storm_network(all_vectors, all_texts, file_ref=pdf_path, sheet_data={"texts": all_texts, "vectors": all_vectors})
+            sanitary_result = detect_sanitary_network(all_vectors, all_texts, file_ref=pdf_path, sheet_data={"texts": all_texts, "vectors": all_vectors})
+            water_result = detect_water_network(all_vectors, all_texts, file_ref=pdf_path, sheet_data={"texts": all_texts, "vectors": all_vectors})
             storm_network = attach_labels(storm_nodes, storm_edges, all_texts, 'storm')
             
             # Sanitary network

@@ -2,6 +2,7 @@ from __future__ import annotations
 import hashlib, json
 from typing import Iterable, Dict, Any, List, Optional
 from backend.app.schemas_estimai import EstimAIResult, Pipe, Node
+from backend.app.services.counts.pipe_buckets import process_networks_to_count_items
 # import your actual CountItemCreate / repository / session interfaces:
 # from backend.app.models.counts import CountItemCreate
 # from backend.app.services.counts_repo import CountsRepo
@@ -81,6 +82,58 @@ def _nodes_to_count_items(
         })
     return items
 
+def _process_pipe_buckets(payload: EstimAIResult, sheet: Optional[str]=None) -> List[Dict[str, Any]]:
+    """
+    Process pipe depth buckets into count items with CSI tags and pricing.
+    
+    Args:
+        payload: EstimAIResult with networks data
+        sheet: Optional sheet reference
+        
+    Returns:
+        List of count item dictionaries with depth buckets
+    """
+    # Convert networks to the format expected by pipe bucket processor
+    networks = {
+        "storm": {
+            "pipes": [pipe.__dict__ for pipe in payload.networks.storm.pipes] if payload.networks.storm else []
+        },
+        "sanitary": {
+            "pipes": [pipe.__dict__ for pipe in payload.networks.sanitary.pipes] if payload.networks.sanitary else []
+        },
+        "water": {
+            "pipes": [pipe.__dict__ for pipe in payload.networks.water.pipes] if payload.networks.water else []
+        }
+    }
+    
+    # Process networks to count items with depth buckets
+    bucket_items = process_networks_to_count_items(networks)
+    
+    # Convert to count item format
+    count_items = []
+    for item in bucket_items:
+        count_item = {
+            "category": item["category"],
+            "subtype": item.get("attributes", {}).get("material", "unknown"),
+            "name": f"{item['category']}_{item.get('attributes', {}).get('pipe_id', 'unknown')}",
+            "quantity": item["quantity"],
+            "unit": item["uom"],
+            "attributes": {
+                "csi": item["csi"],
+                "unit_price": item.get("unit_price"),
+                "total_price": item.get("total_price"),
+                **(item.get("attributes", {}))
+            },
+            "source_ref": {
+                "sheet": sheet, 
+                "geom_id": item.get("attributes", {}).get("pipe_id", "unknown"),
+                "hash": _src_key(sheet, item.get("attributes", {}).get("pipe_id", "unknown"), item["category"])
+            }
+        }
+        count_items.append(count_item)
+    
+    return count_items
+
 def estimai_to_count_items(payload: EstimAIResult, sheet: Optional[str]=None) -> List[Dict[str, Any]]:
     """
     Flatten EstimAIResult into a list of count-item dicts aligned with your /v1/counts schema.
@@ -89,6 +142,10 @@ def estimai_to_count_items(payload: EstimAIResult, sheet: Optional[str]=None) ->
     out: List[Dict[str, Any]] = []
     nets = payload.networks
 
+    # Process pipe depth buckets first
+    out += _process_pipe_buckets(payload, sheet)
+
+    # Add traditional pipe items (for backward compatibility)
     if nets.storm:
         out += _pipe_to_count_items(nets.storm.pipes, "storm_pipe", sheet)
         out += _nodes_to_count_items(nets.storm.structures, "inlet", "EA", sheet)

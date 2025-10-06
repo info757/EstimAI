@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 
-from backend.app.agent.takeoff import process_takeoff_request, get_session_status, cleanup_old_sessions, TakeoffRequest, TakeoffResponse
+from backend.app.agent.takeoff_simple import run_takeoff_agent, ProposedReview
 
 
 logger = logging.getLogger(__name__)
