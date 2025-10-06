@@ -1,323 +1,204 @@
 """
-Database migration utilities for SQLite.
-
-Provides migration management, index creation, and database optimization
-for production stability and demo performance.
+Database migration utilities for adding indices and optimizing performance.
 """
+import sqlite3
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from sqlalchemy import create_engine, text, Index, MetaData, Table, Column, Integer, String, Float, DateTime, Boolean, Text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError
-
-from backend.app.core.config import settings
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+# SQLite indices for performance optimization
+INDICES = [
+    # Counts table indices
+    "CREATE INDEX IF NOT EXISTS idx_counts_category ON counts(category);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_subtype ON counts(subtype);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_quantity ON counts(quantity);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_created_at ON counts(created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_session_id ON counts(session_id);",
+    
+    # Reviews table indices
+    "CREATE INDEX IF NOT EXISTS idx_reviews_session_id ON reviews(session_id);",
+    "CREATE INDEX IF NOT EXISTS idx_reviews_sheet_ref ON reviews(sheet_ref);",
+    "CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews(created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews(status);",
+    
+    # Composite indices for common queries
+    "CREATE INDEX IF NOT EXISTS idx_counts_category_subtype ON counts(category, subtype);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_session_category ON counts(session_id, category);",
+    "CREATE INDEX IF NOT EXISTS idx_reviews_session_status ON reviews(session_id, status);",
+    
+    # Source reference indices
+    "CREATE INDEX IF NOT EXISTS idx_counts_source_hash ON counts(source_hash);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_source_sheet ON counts(source_sheet);",
+    "CREATE INDEX IF NOT EXISTS idx_counts_source_geom_id ON counts(source_geom_id);",
+]
 
-class DatabaseMigrator:
-    """Handles database migrations and optimizations."""
+
+def get_db_path() -> Path:
+    """Get the database file path."""
+    return Path("backend/estimai.db")
+
+
+def apply_migrations(db_path: str = None) -> List[str]:
+    """
+    Apply database migrations and indices.
     
-    def __init__(self, database_url: str = None):
-        self.database_url = database_url or settings.DATABASE_URL
-        self.engine = create_engine(self.database_url, echo=False)
-        self.Session = sessionmaker(bind=self.engine)
-        self.migrations_dir = Path("migrations")
-        self.migrations_dir.mkdir(exist_ok=True)
+    Args:
+        db_path: Path to SQLite database file
+        
+    Returns:
+        List of applied migration statements
+    """
+    if db_path is None:
+        db_path = str(get_db_path())
     
-    def create_indices(self):
-        """Create database indices for performance optimization."""
-        indices = [
-            # CountItem indices
-            {
-                "name": "idx_countitem_file_page",
-                "table": "countitem",
-                "columns": ["file", "page"],
-                "unique": False
-            },
-            {
-                "name": "idx_countitem_type",
-                "table": "countitem", 
-                "columns": ["type"],
-                "unique": False
-            },
-            {
-                "name": "idx_countitem_status",
-                "table": "countitem",
-                "columns": ["status"],
-                "unique": False
-            },
-            {
-                "name": "idx_countitem_confidence",
-                "table": "countitem",
-                "columns": ["confidence"],
-                "unique": False
-            },
-            {
-                "name": "idx_countitem_file_type_status",
-                "table": "countitem",
-                "columns": ["file", "type", "status"],
-                "unique": False
-            },
-            
-            # ReviewSession indices
-            {
-                "name": "idx_reviewsession_file",
-                "table": "reviewsession",
-                "columns": ["file"],
-                "unique": False
-            },
-            {
-                "name": "idx_reviewsession_created_at",
-                "table": "reviewsession",
-                "columns": ["created_at"],
-                "unique": False
-            },
-            
-            # User indices (if users table exists)
-            {
-                "name": "idx_user_email",
-                "table": "user",
-                "columns": ["email"],
-                "unique": True
-            },
-            {
-                "name": "idx_user_username",
-                "table": "user",
-                "columns": ["username"],
-                "unique": True
-            }
-        ]
-        
-        with self.engine.connect() as conn:
-            for index_spec in indices:
-                try:
-                    self._create_index_if_not_exists(conn, index_spec)
-                    logger.info(f"Created index: {index_spec['name']}")
-                except Exception as e:
-                    logger.warning(f"Failed to create index {index_spec['name']}: {e}")
+    applied_migrations = []
     
-    def _create_index_if_not_exists(self, conn, index_spec: Dict[str, Any]):
-        """Create index if it doesn't exist."""
-        # Check if index exists
-        check_sql = f"""
-        SELECT name FROM sqlite_master 
-        WHERE type='index' AND name='{index_spec['name']}'
-        """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        result = conn.execute(text(check_sql)).fetchone()
-        if result:
-            logger.info(f"Index {index_spec['name']} already exists")
-            return
+        # Apply indices
+        for index_sql in INDICES:
+            try:
+                cursor.execute(index_sql)
+                applied_migrations.append(index_sql)
+                logger.info(f"Applied index: {index_sql}")
+            except sqlite3.Error as e:
+                logger.warning(f"Failed to apply index {index_sql}: {e}")
         
-        # Create index
-        columns_str = ", ".join(index_spec['columns'])
-        unique_str = "UNIQUE" if index_spec.get('unique', False) else ""
-        
-        create_sql = f"""
-        CREATE {unique_str} INDEX {index_spec['name']} 
-        ON {index_spec['table']} ({columns_str})
-        """
-        
-        conn.execute(text(create_sql))
         conn.commit()
-    
-    def optimize_database(self):
-        """Optimize database for performance."""
-        with self.engine.connect() as conn:
-            try:
-                # Analyze tables for query optimization
-                conn.execute(text("ANALYZE"))
-                logger.info("Database analysis completed")
-                
-                # Set pragmas for better performance
-                pragmas = [
-                    "PRAGMA journal_mode=WAL",
-                    "PRAGMA synchronous=NORMAL", 
-                    "PRAGMA cache_size=10000",
-                    "PRAGMA temp_store=MEMORY",
-                    "PRAGMA mmap_size=268435456"  # 256MB
-                ]
-                
-                for pragma in pragmas:
-                    conn.execute(text(pragma))
-                
-                logger.info("Database optimization completed")
-                
-            except Exception as e:
-                logger.warning(f"Database optimization failed: {e}")
-    
-    def create_sample_data(self):
-        """Create sample data for demos."""
-        sample_data = {
-            "count_items": [
-                {
-                    "file": "demo_site_plan.pdf",
-                    "page": 1,
-                    "type": "storm_pipe",
-                    "confidence": 0.95,
-                    "x_pdf": 100.0,
-                    "y_pdf": 200.0,
-                    "points_per_foot": 50.0,
-                    "status": "accepted",
-                    "name": "Storm Pipe 12\"",
-                    "subtype": "concrete",
-                    "quantity": 150.0,
-                    "unit": "LF",
-                    "attributes": {
-                        "diameter_in": 12,
-                        "material": "concrete",
-                        "avg_depth_ft": 4.5,
-                        "buckets_lf": {"0-5": 100, "5-8": 50}
-                    }
-                },
-                {
-                    "file": "demo_site_plan.pdf", 
-                    "page": 1,
-                    "type": "manhole",
-                    "confidence": 0.88,
-                    "x_pdf": 300.0,
-                    "y_pdf": 400.0,
-                    "points_per_foot": 50.0,
-                    "status": "accepted",
-                    "name": "Manhole 4ft",
-                    "subtype": "concrete",
-                    "quantity": 1.0,
-                    "unit": "EA",
-                    "attributes": {
-                        "diameter_ft": 4,
-                        "material": "concrete"
-                    }
-                },
-                {
-                    "file": "demo_site_plan.pdf",
-                    "page": 1, 
-                    "type": "curb",
-                    "confidence": 0.92,
-                    "x_pdf": 500.0,
-                    "y_pdf": 600.0,
-                    "points_per_foot": 50.0,
-                    "status": "pending",
-                    "name": "Concrete Curb",
-                    "subtype": "concrete",
-                    "quantity": 200.0,
-                    "unit": "LF",
-                    "attributes": {
-                        "material": "concrete",
-                        "height_in": 6
-                    }
-                }
-            ],
-            "review_sessions": [
-                {
-                    "id": "demo_session_1",
-                    "file": "demo_site_plan.pdf",
-                    "pages": [1],
-                    "points_per_foot": 50.0,
-                    "metrics": {
-                        "total_items": 3,
-                        "accepted_items": 2,
-                        "precision": 0.95,
-                        "recall": 0.88,
-                        "f1": 0.91
-                    }
-                }
-            ]
-        }
+        logger.info(f"Applied {len(applied_migrations)} database migrations")
         
-        with self.Session() as session:
-            try:
-                # Insert sample count items
-                from backend.app.models import CountItem, CountStatus
-                
-                for item_data in sample_data["count_items"]:
-                    # Check if item already exists
-                    existing = session.query(CountItem).filter(
-                        CountItem.file == item_data["file"],
-                        CountItem.page == item_data["page"],
-                        CountItem.type == item_data["type"]
-                    ).first()
-                    
-                    if not existing:
-                        count_item = CountItem(
-                            file=item_data["file"],
-                            page=item_data["page"],
-                            type=item_data["type"],
-                            confidence=item_data["confidence"],
-                            x_pdf=item_data["x_pdf"],
-                            y_pdf=item_data["y_pdf"],
-                            points_per_foot=item_data["points_per_foot"],
-                            status=getattr(CountStatus, item_data["status"].upper()),
-                            name=item_data["name"],
-                            subtype=item_data["subtype"],
-                            quantity=item_data["quantity"],
-                            unit=item_data["unit"],
-                            attributes=item_data["attributes"]
-                        )
-                        session.add(count_item)
-                
-                # Insert sample review sessions
-                from backend.app.models import ReviewSession
-                
-                for session_data in sample_data["review_sessions"]:
-                    existing = session.query(ReviewSession).filter(
-                        ReviewSession.id == session_data["id"]
-                    ).first()
-                    
-                    if not existing:
-                        review_session = ReviewSession(
-                            id=session_data["id"],
-                            file=session_data["file"],
-                            pages=session_data["pages"],
-                            points_per_foot=session_data["points_per_foot"],
-                            metrics=session_data["metrics"]
-                        )
-                        session.add(review_session)
-                
-                session.commit()
-                logger.info("Sample data created successfully")
-                
-            except Exception as e:
-                session.rollback()
-                logger.error(f"Failed to create sample data: {e}")
-                raise
+    except sqlite3.Error as e:
+        logger.error(f"Database migration failed: {e}")
+        raise
+    finally:
+        if 'conn' in locals():
+            conn.close()
     
-    def run_migrations(self):
-        """Run all database migrations."""
-        try:
-            logger.info("Starting database migrations...")
-            
-            # Create indices
-            self.create_indices()
-            
-            # Optimize database
-            self.optimize_database()
-            
-            # Create sample data if in demo mode
-            if settings.DEBUG or getattr(settings, 'DEMO_MODE', False):
-                self.create_sample_data()
-            
-            logger.info("Database migrations completed successfully")
-            
-        except Exception as e:
-            logger.error(f"Database migrations failed: {e}")
-            raise
+    return applied_migrations
 
 
-# Global migrator instance
-_migrator = None
+def check_indices(db_path: str = None) -> Dict[str, List[str]]:
+    """
+    Check existing indices in the database.
+    
+    Args:
+        db_path: Path to SQLite database file
+        
+    Returns:
+        Dictionary with table names and their indices
+    """
+    if db_path is None:
+        db_path = str(get_db_path())
+    
+    indices = {}
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get all indices
+        cursor.execute("""
+            SELECT name, tbl_name, sql 
+            FROM sqlite_master 
+            WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
+            ORDER BY tbl_name, name
+        """)
+        
+        for row in cursor.fetchall():
+            name, table, sql = row
+            if table not in indices:
+                indices[table] = []
+            indices[table].append({
+                'name': name,
+                'sql': sql
+            })
+        
+    except sqlite3.Error as e:
+        logger.error(f"Failed to check indices: {e}")
+        raise
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return indices
 
 
-def get_migrator() -> DatabaseMigrator:
-    """Get global database migrator instance."""
-    global _migrator
-    if _migrator is None:
-        _migrator = DatabaseMigrator()
-    return _migrator
+def optimize_database(db_path: str = None) -> Dict[str, Any]:
+    """
+    Optimize database performance.
+    
+    Args:
+        db_path: Path to SQLite database file
+        
+    Returns:
+        Optimization results
+    """
+    if db_path is None:
+        db_path = str(get_db_path())
+    
+    results = {
+        'indices_applied': 0,
+        'vacuum_completed': False,
+        'analyze_completed': False
+    }
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Apply indices
+        applied_migrations = apply_migrations(db_path)
+        results['indices_applied'] = len(applied_migrations)
+        
+        # Vacuum database
+        cursor.execute("VACUUM")
+        results['vacuum_completed'] = True
+        logger.info("Database vacuum completed")
+        
+        # Analyze database
+        cursor.execute("ANALYZE")
+        results['analyze_completed'] = True
+        logger.info("Database analysis completed")
+        
+        conn.commit()
+        
+    except sqlite3.Error as e:
+        logger.error(f"Database optimization failed: {e}")
+        raise
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return results
 
 
-def run_database_migrations():
-    """Run database migrations on startup."""
-    migrator = get_migrator()
-    migrator.run_migrations()
+if __name__ == "__main__":
+    # Run migrations when script is executed directly
+    print("🔧 Applying database migrations...")
+    
+    try:
+        applied = apply_migrations()
+        print(f"✅ Applied {len(applied)} migrations")
+        
+        # Check indices
+        indices = check_indices()
+        print(f"📊 Found indices for {len(indices)} tables")
+        
+        for table, table_indices in indices.items():
+            print(f"  {table}: {len(table_indices)} indices")
+        
+        # Optimize database
+        results = optimize_database()
+        print(f"🚀 Database optimization completed:")
+        print(f"  - Indices applied: {results['indices_applied']}")
+        print(f"  - Vacuum completed: {results['vacuum_completed']}")
+        print(f"  - Analysis completed: {results['analyze_completed']}")
+        
+    except Exception as e:
+        print(f"❌ Migration failed: {e}")
+        import traceback
+        traceback.print_exc()

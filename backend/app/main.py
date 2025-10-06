@@ -14,6 +14,7 @@ from backend.app.api.v1.routes.agent_takeoff import router as agent_takeoff_rout
 from backend.app.api.v1.routes.export import router as export_router
 from backend.app.api.v1.routes.demo import router as demo_router
 from backend.app.core.config import settings
+from backend.app.core.error_handlers import setup_error_handlers
 
 # Configure logging - INFO level in production, DEBUG available via env
 log_level = logging.DEBUG if settings.DEBUG else logging.INFO
@@ -45,6 +46,9 @@ try:
 except Exception as e:
     print(f"⚠️ Security middleware failed to load: {e}")
 
+# Setup error handlers
+setup_error_handlers(app)
+
 # Mount static files for reports
 app.mount("/reports", StaticFiles(directory=str(settings.get_reports_dir())), name="reports")
 
@@ -62,6 +66,18 @@ app.include_router(agent_takeoff_router, tags=["agent"])
 app.include_router(export_router, tags=["export"])
 app.include_router(demo_router, tags=["demo"])
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "estimai-backend",
+        "version": "1.0.0",
+        "timestamp": __import__("time").time()
+    }
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and optional services on startup."""
@@ -69,9 +85,9 @@ async def startup_event():
     
     # Run database migrations
     try:
-        from backend.app.db.migrations import run_database_migrations
-        run_database_migrations()
-        print("✅ Database migrations completed")
+        from backend.app.db.migrations import apply_migrations
+        applied = apply_migrations()
+        print(f"✅ Database migrations completed: {len(applied)} indices applied")
     except Exception as e:
         print(f"⚠️ Database migrations failed: {e}")
     
