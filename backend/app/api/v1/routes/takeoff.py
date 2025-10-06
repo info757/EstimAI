@@ -101,10 +101,13 @@ async def takeoff_pdf(file: UploadFile = File(...)):
             from backend.app.services.detectors.sanitary import detect_sanitary_network
             from backend.app.services.detectors.water import detect_water_network
             
-            # Detect networks
-            storm_result = detect_storm_network(all_vectors, all_texts)
-            sanitary_result = detect_sanitary_network(all_vectors, all_texts)
-            water_result = detect_water_network(all_vectors, all_texts)
+            # Detect networks with file reference and sheet data
+            file_ref = tmp_file_path
+            sheet_data = {"texts": all_texts, "vectors": all_vectors}
+            
+            storm_result = detect_storm_network(all_vectors, all_texts, file_ref=file_ref, sheet_data=sheet_data)
+            sanitary_result = detect_sanitary_network(all_vectors, all_texts, file_ref=file_ref, sheet_data=sheet_data)
+            water_result = detect_water_network(all_vectors, all_texts, file_ref=file_ref, sheet_data=sheet_data)
             
             # Step 6: Calculate sitework quantities
             from backend.app.services.detectors.sitework import (
@@ -131,9 +134,30 @@ async def takeoff_pdf(file: UploadFile = File(...)):
             
             # Step 8: Collect QA flags from all networks
             all_qa_flags = []
-            all_qa_flags.extend(storm_result.get("qa_flags", []))
-            all_qa_flags.extend(sanitary_result.get("qa_flags", []))
-            all_qa_flags.extend(water_result.get("qa_flags", []))
+            for qa_flag in storm_result.get("qa_flags", []):
+                if hasattr(qa_flag, 'code'):
+                    all_qa_flags.append({
+                        "code": qa_flag.code,
+                        "message": qa_flag.message,
+                        "geom_id": qa_flag.geom_id,
+                        "sheet_ref": qa_flag.sheet_ref
+                    })
+            for qa_flag in sanitary_result.get("qa_flags", []):
+                if hasattr(qa_flag, 'code'):
+                    all_qa_flags.append({
+                        "code": qa_flag.code,
+                        "message": qa_flag.message,
+                        "geom_id": qa_flag.geom_id,
+                        "sheet_ref": qa_flag.sheet_ref
+                    })
+            for qa_flag in water_result.get("qa_flags", []):
+                if hasattr(qa_flag, 'code'):
+                    all_qa_flags.append({
+                        "code": qa_flag.code,
+                        "message": qa_flag.message,
+                        "geom_id": qa_flag.geom_id,
+                        "sheet_ref": qa_flag.sheet_ref
+                    })
             
             # Step 9: Build EstimAIResult
             result = EstimAIResult(
