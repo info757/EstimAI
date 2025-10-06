@@ -1,247 +1,114 @@
 """
-PDF export API endpoints.
+Export API routes for PDF generation.
 
-Provides endpoints for generating PDF summaries and reports.
+Provides endpoints for generating PDF reports and summaries.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
-from sqlalchemy.orm import Session
-from typing import Optional
 import logging
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-from backend.app.db import get_db
-from backend.app.deps import get_current_user
-from backend.app.schemas_estimai import EstimAIResult
-from backend.app.services.pdf_export import get_pdf_export_service
-from backend.app.services.assemblies import get_assemblies_mapper
+from backend.app.services.pdf_export.summary import export_session_summary_bytes, create_summary_exporter
 
-router = APIRouter(prefix="/v1/export", tags=["export"])
 logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/v1/export", tags=["export"])
+
+
+class ExportSummaryRequest(BaseModel):
+    """Request model for PDF summary export."""
+    session_id: str
 
 
 @router.post("/summary")
-async def export_summary_pdf(
-    estimai_result: EstimAIResult,
-    project_name: str = Query("Construction Project", description="Name of the project"),
-    file_name: str = Query("unknown.pdf", description="Name of the source file"),
-    page_number: int = Query(1, description="Page number being analyzed"),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
+async def export_summary(request: ExportSummaryRequest):
     """
-    Generate a PDF summary report from EstimAI result.
+    Export takeoff summary as PDF.
     
     Args:
-        estimai_result: EstimAI result data
-        project_name: Name of the project
-        file_name: Name of the source file
-        page_number: Page number being analyzed
+        request: Export request with session_id
         
     Returns:
-        PDF file as response
+        PDF file response
     """
     try:
-        # Get PDF export service
-        pdf_service = get_pdf_export_service()
+        session_id = request.session_id
         
-        # Generate PDF
-        pdf_bytes = pdf_service.generate_summary_pdf(
-            estimai_result=estimai_result,
-            project_name=project_name,
-            file_name=file_name,
-            page_number=page_number
-        )
+        # Generate PDF bytes
+        pdf_bytes = export_session_summary_bytes(session_id)
         
-        # Return PDF response
+        # Return PDF as response
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=estimai_summary_{project_name.replace(' ', '_')}.pdf"
+                "Content-Disposition": f"attachment; filename=estimai_summary_{session_id}.pdf"
             }
         )
         
     except Exception as e:
-        logger.error(f"Error generating PDF summary: {e}")
+        logger.error(f"Failed to export summary: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate PDF summary: {str(e)}"
+            detail=f"Failed to export summary: {str(e)}"
         )
 
 
-@router.get("/summary")
-async def export_summary_pdf_get(
-    project_name: str = Query("Construction Project", description="Name of the project"),
-    file_name: str = Query("unknown.pdf", description="Name of the source file"),
-    page_number: int = Query(1, description="Page number being analyzed"),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
+@router.get("/summary/{session_id}")
+async def export_summary_get(session_id: str):
     """
-    Generate a PDF summary report from existing count items.
+    Export takeoff summary as PDF (GET endpoint).
     
-    This endpoint creates a summary from count items in the database
-    rather than requiring an EstimAI result.
+    Args:
+        session_id: Session identifier
+        
+    Returns:
+        PDF file response
     """
     try:
-        from backend.app.models import CountItem as CountItemModel
-        from backend.app.schemas_estimai import EstimAIResult, Networks, StormNetwork, SanitaryNetwork, WaterNetwork, Roadway, ESC, Earthwork
+        # Generate PDF bytes
+        pdf_bytes = export_session_summary_bytes(session_id)
         
-        # Get count items for the specified file and page
-        count_items = db.query(CountItemModel).filter(
-            CountItemModel.file == file_name,
-            CountItemModel.page == page_number
-        ).all()
-        
-        if not count_items:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No count items found for file {file_name} and page {page_number}"
-            )
-        
-        # Convert count items to EstimAI result format
-        estimai_result = _convert_count_items_to_estimai_result(count_items)
-        
-        # Get PDF export service
-        pdf_service = get_pdf_export_service()
-        
-        # Generate PDF
-        pdf_bytes = pdf_service.generate_summary_pdf(
-            estimai_result=estimai_result,
-            project_name=project_name,
-            file_name=file_name,
-            page_number=page_number
-        )
-        
-        # Return PDF response
+        # Return PDF as response
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=estimai_summary_{project_name.replace(' ', '_')}.pdf"
+                "Content-Disposition": f"attachment; filename=estimai_summary_{session_id}.pdf"
             }
         )
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error generating PDF summary from count items: {e}")
+        logger.error(f"Failed to export summary: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate PDF summary: {str(e)}"
+            detail=f"Failed to export summary: {str(e)}"
         )
 
 
-def _convert_count_items_to_estimai_result(count_items) -> EstimAIResult:
-    """Convert count items to EstimAI result format."""
-    from backend.app.schemas_estimai import EstimAIResult, Networks, StormNetwork, SanitaryNetwork, WaterNetwork, Roadway, ESC, Earthwork, Pipe, Node
+@router.get("/summary/{session_id}/preview")
+async def export_summary_preview(session_id: str):
+    """
+    Preview takeoff summary as HTML.
     
-    # Group items by type
-    storm_pipes = []
-    sanitary_pipes = []
-    water_pipes = []
-    structures = []
-    sitework_items = []
-    
-    for item in count_items:
-        item_type = item.type.lower()
-        attributes = getattr(item, 'attributes', {}) or {}
+    Args:
+        session_id: Session identifier
         
-        if 'storm' in item_type or 'pipe' in item_type:
-            # Create pipe object
-            pipe = Pipe(
-                id=item.id,
-                from_id="unknown",
-                to_id="unknown",
-                length_ft=item.quantity or 0,
-                dia_in=attributes.get('diameter_in'),
-                mat=attributes.get('material'),
-                slope=None,
-                avg_depth_ft=attributes.get('avg_depth_ft'),
-                extra=attributes
-            )
-            storm_pipes.append(pipe)
+    Returns:
+        HTML preview response
+    """
+    try:
+        exporter = create_summary_exporter()
+        html_content = exporter.generate_html(session_id)
         
-        elif 'sanitary' in item_type:
-            pipe = Pipe(
-                id=item.id,
-                from_id="unknown",
-                to_id="unknown",
-                length_ft=item.quantity or 0,
-                dia_in=attributes.get('diameter_in'),
-                mat=attributes.get('material'),
-                slope=None,
-                avg_depth_ft=attributes.get('avg_depth_ft'),
-                extra=attributes
-            )
-            sanitary_pipes.append(pipe)
+        return Response(
+            content=html_content,
+            media_type="text/html"
+        )
         
-        elif 'water' in item_type:
-            pipe = Pipe(
-                id=item.id,
-                from_id="unknown",
-                to_id="unknown",
-                length_ft=item.quantity or 0,
-                dia_in=attributes.get('diameter_in'),
-                mat=attributes.get('material'),
-                slope=None,
-                avg_depth_ft=attributes.get('avg_depth_ft'),
-                extra=attributes
-            )
-            water_pipes.append(pipe)
-        
-        elif 'manhole' in item_type or 'inlet' in item_type:
-            node = Node(
-                id=item.id,
-                kind="manhole" if 'manhole' in item_type else "inlet",
-                x=item.x_pdf,
-                y=item.y_pdf,
-                attrs=attributes
-            )
-            structures.append(node)
-        
-        elif 'curb' in item_type or 'sidewalk' in item_type:
-            sitework_items.append({
-                'type': item_type,
-                'quantity': item.quantity or 0,
-                'attributes': attributes
-            })
-    
-    # Create networks
-    networks = Networks()
-    
-    if storm_pipes:
-        networks.storm = StormNetwork(pipes=storm_pipes, structures=[])
-    
-    if sanitary_pipes:
-        networks.sanitary = SanitaryNetwork(pipes=sanitary_pipes, manholes=[])
-    
-    if water_pipes:
-        networks.water = WaterNetwork(pipes=water_pipes, hydrants=[], valves=[])
-    
-    # Create roadway
-    roadway = Roadway()
-    for item in sitework_items:
-        if 'curb' in item['type']:
-            roadway.curb_lf = item['quantity']
-        elif 'sidewalk' in item['type']:
-            roadway.sidewalk_sf = item['quantity']
-    
-    # Create ESC
-    esc = ESC()
-    
-    # Create earthwork
-    earthwork = Earthwork()
-    
-    # Create EstimAI result
-    result = EstimAIResult(
-        sheet_units="ft",
-        scale=None,
-        networks=networks,
-        roadway=roadway,
-        e_sc=esc,
-        earthwork=earthwork,
-        qa_flags=[]
-    )
-    
-    return result
+    except Exception as e:
+        logger.error(f"Failed to preview summary: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to preview summary: {str(e)}"
+        )
