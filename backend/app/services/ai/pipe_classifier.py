@@ -265,7 +265,7 @@ Return JSON object with this exact format:
                         asyncio.run,
                         llm_call_json(prompt=prompt, context=context, schema=schema)
                     )
-                    result = future.result(timeout=30)  # 30 second timeout
+                    result = future.result(timeout=120)  # 120 second timeout (LLM can be slow for many candidates)
             except RuntimeError:
                 # No loop running, safe to create one
                 result = asyncio.run(llm_call_json(prompt=prompt, context=context, schema=schema))
