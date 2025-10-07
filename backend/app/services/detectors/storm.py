@@ -1,5 +1,5 @@
 """
-Storm network detection and analysis using Apryse + LLM.
+Storm network detection and analysis using Takeoff AI Agent.
 
 This module provides functions to detect storm network elements using:
 1. Apryse PDFNet for vector geometry extraction
@@ -137,7 +137,7 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
         return _attach_labels_and_qa(pipes, texts, "storm")
     
     # Real pipeline
-    logger.info("Detecting storm network using Apryse + LLM pipeline")
+    logger.info("Detecting storm network using Takeoff AI Agent")
     
     if not pdf_path:
         if USE_DEMO:
@@ -260,6 +260,8 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                     layer_hint=patch_data.get("layer")
                 )
                 
+                logger.info(f"🔧 Rule assignment for {d.polyline_id}: {assigned_discipline} via {rule_method}")
+                
                 # Update detection if rule assigned storm
                 if assigned_discipline == "storm":
                     d.attrs.discipline = "storm"
@@ -271,9 +273,15 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                     if d.attrs.confidence is not None and d.attrs.confidence < 0.50:
                         original_conf = d.attrs.confidence
                         d.attrs.confidence = 0.50  # Boost to pass threshold
-                        logger.debug(f"Boosted confidence for {d.polyline_id}: {original_conf:.2f} → 0.50 (rule-based)")
+                        logger.info(f"✅ Boosted {d.polyline_id}: {original_conf:.2f} → 0.50 (rule-based, now should_include={should_include})")
+                    else:
+                        logger.info(f"✅ Rule assigned storm to {d.polyline_id}, conf already {d.attrs.confidence}, should_include={should_include}")
+                elif assigned_discipline:
+                    logger.info(f"❌ Rule assigned {assigned_discipline} (not storm) to {d.polyline_id}, excluding")
+                    assignment_method = rule_method
                 else:
-                    assignment_method = rule_method if assigned_discipline else "unknown"
+                    logger.info(f"❌ No rule assignment for {d.polyline_id}")
+                    assignment_method = "unknown"
             else:
                 # Determine if it was LLM or heuristic
                 if "LLM:" in reason:
@@ -395,6 +403,136 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
             
             pipe_dicts.append(pipe_dict)
         
+        # Step 6.5: Extract elevations using LLM (reads entire page context)
+        logger.info(f"🤖 Extracting elevations for {len(pipe_dicts)} storm pipes using LLM...")
+        
+        # Get text runs from extractor
+        text_runs = extractor.get_text_runs_all(page_num=0)
+        logger.info(f"  Retrieved {len(text_runs)} text runs for elevation extraction")
+        
+        # Build polyline list for LLM
+        from backend.app.services.ai.llm_elevation_extractor import extract_elevations_llm
+        
+        poly_list = []
+        for i, pipe_dict in enumerate(pipe_dicts):
+            detection = storm_detections[i] if i < len(storm_detections) else None
+            polyline = None
+            if detection:
+                polyline = next((p for p in polylines if p.id == detection.polyline_id), None)
+            
+            if polyline and polyline.points:
+                poly_list.append({
+                    "id": pipe_dict["id"],
+                    "vertices": polyline.points,
+                    "bbox": list(polyline.bbox),
+                    "material": pipe_dict.get("mat"),
+                    "dia_in": pipe_dict.get("dia_in"),
+                    "attrs": pipe_dict  # Include full attrs for LLM context
+                })
+        
+        # Call LLM to extract elevations for ALL pipes at once
+        elevation_map = extract_elevations_llm(
+            polylines=poly_list,
+            text_runs=text_runs,
+            model="gpt-4o-mini",
+            timeout=90
+        )
+        
+        # Track elevation extraction stats
+        elev_stats = {"both": 0, "one": 0, "none": 0, "depth_calculated": 0}
+        
+        for i, pipe_dict in enumerate(pipe_dicts):
+            detection = storm_detections[i] if i < len(storm_detections) else None
+            polyline = None
+            if detection:
+                polyline = next((p for p in polylines if p.id == detection.polyline_id), None)
+            
+            if not polyline or not polyline.points or len(polyline.points) < 2:
+                logger.debug(f"Skipping elevation for {pipe_dict['id']}: no geometry")
+                elev_stats["none"] += 1
+                continue
+            
+            # Get elevations from LLM result
+            invert_in, invert_out = elevation_map.get(pipe_dict["id"], (None, None))
+            
+            # Track stats
+            if invert_in and invert_out:
+                elev_stats["both"] += 1
+            elif invert_in or invert_out:
+                elev_stats["one"] += 1
+            else:
+                elev_stats["none"] += 1
+            
+            # Build s_profile from inverts
+            from backend.app.services.ingest.elevation_extractor import create_s_profile_from_inverts
+            
+            s_profile = create_s_profile_from_inverts(
+                invert_in=invert_in,
+                invert_out=invert_out,
+                pipe_length_ft=pipe_dict["length_ft"]
+            )
+            
+            # Get ground elevation (use constant for now, TODO: surface sampler)
+            from backend.app.services.ingest.elevation_extractor import estimate_ground_elevation
+            
+            ground_elev = estimate_ground_elevation(
+                bbox=list(polyline.bbox),
+                surface_sampler=None,  # TODO: wire surface sampler
+                default_elevation=100.0  # TODO: extract from text or user input
+            )
+            
+            # Calculate depth if we have invert data
+            if s_profile:
+                # Create ground elevation function
+                def ground_at_s(station: float) -> float:
+                    # TODO: Sample along pipe centerline using surface
+                    return ground_elev
+                
+                # Sample depth along pipe
+                samples = sample_depth_along_run(
+                    s_profile=s_profile,
+                    ground_at_s=ground_at_s,
+                    material=pipe_dict["mat"],
+                    dia_in=pipe_dict["dia_in"],
+                    n_samples=20
+                )
+                
+                # Calculate depth summary
+                summary = summarize_depth(samples, "storm")
+                
+                # Attach depth data to pipe
+                pipe_dict["avg_depth_ft"] = summary.avg_depth_ft
+                pipe_dict["extra"]["min_depth_ft"] = summary.min_depth_ft
+                pipe_dict["extra"]["max_depth_ft"] = summary.max_depth_ft
+                pipe_dict["extra"]["p95_depth_ft"] = summary.p95_depth_ft
+                pipe_dict["extra"]["trench_volume_cy"] = summary.trench_volume_cy
+                pipe_dict["extra"]["invert_in_ft"] = invert_in
+                pipe_dict["extra"]["invert_out_ft"] = invert_out
+                pipe_dict["extra"]["ground_elev_ft"] = ground_elev
+                
+                elev_stats["depth_calculated"] += 1
+                
+                ie_in_str = f"{invert_in:.1f}" if invert_in is not None else "N/A"
+                ie_out_str = f"{invert_out:.1f}" if invert_out is not None else "N/A"
+                logger.debug(
+                    f"{pipe_dict['id']}: depth={summary.avg_depth_ft:.1f}ft "
+                    f"(IE_IN={ie_in_str}, IE_OUT={ie_out_str}, GL={ground_elev:.1f})"
+                )
+            else:
+                # Cannot calculate depth - flag it
+                pipe_dict["avg_depth_ft"] = None
+                pipe_dict["extra"]["depth_unavailable"] = True
+                pipe_dict["extra"]["depth_unavailable_reason"] = "Missing invert elevations"
+                
+                logger.debug(f"{pipe_dict['id']}: Cannot calculate depth (no inverts found)")
+        
+        # Log elevation extraction summary
+        logger.info(f"📏 Elevation extraction complete:")
+        logger.info(f"  Both inverts found: {elev_stats['both']} pipes")
+        logger.info(f"  One invert found: {elev_stats['one']} pipes (assumed 0.5% slope)")
+        logger.info(f"  No inverts found: {elev_stats['none']} pipes (flagged as DEPTH_UNAVAILABLE)")
+        logger.info(f"  Depths calculated: {elev_stats['depth_calculated']} / {len(pipe_dicts)} pipes")
+        
         extractor.close()
         
         # Step 7: Calculate QA flags
@@ -408,7 +546,9 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
         return {
             "nodes": nodes,
             "pipes": pipe_dicts,
-            "qa_flags": qa_flags
+            "qa_flags": qa_flags,
+            "all_detections": detections,  # Include ALL detections (for unknown tracking)
+            "classified_ids": {p["id"] for p in pipe_dicts}  # IDs that made it into this network
         }
     
     except ApryseUnavailable as e:

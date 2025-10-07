@@ -184,6 +184,13 @@ def extract_text_runs_pymupdf(
         xw0, yw0 = to_world_xy(x0, y0_flipped)
         xw1, yw1 = to_world_xy(x1, y1_flipped)
         
+        # Debug: log first few conversions
+        if len(runs) < 3:
+            logger.info(
+                f"📐 Text '{text.strip()}': PDF points ({x0:.1f}, {y0_flipped:.1f}) "
+                f"→ World feet ({xw0:.1f}, {yw0:.1f})"
+            )
+        
         # Create TextRun with normalized bbox (min/max ensures correct ordering)
         runs.append(TextRun(
             text=text.strip(),

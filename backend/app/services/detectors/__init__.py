@@ -101,28 +101,80 @@ def run_extract(file_ref: str, max_pages: Optional[int] = None) -> Any:
             f"sanitary={len(sanitary_result.get('pipes', []))} pipes, "
             f"water={len(water_result.get('pipes', []))} pipes"
         )
+        
+        # Step 2.5: Collect unknowns (pipes that weren't classified into any network)
+        from .unknown import collect_unknowns, merge_unknowns_into_response
+        
+        # Combine all detections and classified IDs
+        all_detections_combined = []
+        classified_ids_combined = set()
+        
+        for network_name, result in [("storm", storm_result), ("sanitary", sanitary_result), ("water", water_result)]:
+            all_detections = result.get("all_detections", [])
+            classified_ids = result.get("classified_ids", set())
+            
+            logger.info(
+                f"📊 {network_name}: {len(all_detections)} total detections, "
+                f"{len(classified_ids)} classified into this network"
+            )
+            
+            # Only add detections once (from first network that saw them)
+            for det in all_detections:
+                if det.polyline_id not in {d.polyline_id for d in all_detections_combined}:
+                    all_detections_combined.append(det)
+            
+            classified_ids_combined.update(classified_ids)
+        
+        # Collect unknowns (not classified into any network)
+        unknown_result = collect_unknowns(all_detections_combined, classified_ids_combined)
+        
+        logger.info(
+            f"Classification summary: "
+            f"{len(classified_ids_combined)} classified, "
+            f"{len(unknown_result.get('pipes', []))} unknown (routed to HITL)"
+        )
+        
     except Exception as e:
         logger.error(f"Network detection failed: {e}", exc_info=True)
         # Return empty networks but don't fail completely
         storm_result = {"nodes": [], "pipes": [], "qa_flags": []}
         sanitary_result = {"nodes": [], "pipes": [], "qa_flags": []}
         water_result = {"nodes": [], "pipes": [], "qa_flags": []}
+        unknown_result = {"nodes": [], "pipes": [], "qa_flags": []}
     
     # Step 3: Build response with JSON-serializable data
     networks = {}
     
     if storm_result and storm_result.get("pipes"):
-        networks['storm'] = _to_primitive(storm_result)
+        # Remove internal fields before sending to client
+        storm_clean = {k: v for k, v in storm_result.items() if k not in ["all_detections", "classified_ids"]}
+        networks['storm'] = _to_primitive(storm_clean)
     
     if sanitary_result and sanitary_result.get("pipes"):
-        networks['sanitary'] = _to_primitive(sanitary_result)
+        sanitary_clean = {k: v for k, v in sanitary_result.items() if k not in ["all_detections", "classified_ids"]}
+        networks['sanitary'] = _to_primitive(sanitary_clean)
     
     if water_result and water_result.get("pipes"):
-        networks['water'] = _to_primitive(water_result)
+        water_clean = {k: v for k, v in water_result.items() if k not in ["all_detections", "classified_ids"]}
+        networks['water'] = _to_primitive(water_clean)
+    
+    # Add unknown network if we have unclassified pipes
+    if unknown_result and unknown_result.get("pipes"):
+        networks['unknown'] = _to_primitive(unknown_result)
+        logger.warning(
+            f"⚠️ 'unknown' network added with {len(unknown_result['pipes'])} pipes - "
+            f"requires HITL review before approval"
+        )
     
     # Log final counts
     total_pipes = sum(len(net.get('pipes', [])) for net in networks.values())
-    logger.info(f"Extract complete: {total_pipes} total pipes across {len(networks)} networks")
+    classified_pipes = sum(len(net.get('pipes', [])) for k, net in networks.items() if k != 'unknown')
+    unknown_pipes = len(networks.get('unknown', {}).get('pipes', []))
+    
+    logger.info(
+        f"Extract complete: {total_pipes} total pipes across {len(networks)} networks "
+        f"({classified_pipes} classified, {unknown_pipes} unknown)"
+    )
     
     return {
         'networks': networks,

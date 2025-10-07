@@ -111,6 +111,22 @@ class PipelineInfo(BaseModel):
         default=None,
         description="Approximate token count of LLM responses"
     )
+    content_hash: str | None = Field(
+        default=None,
+        description="SHA256 hash of canonicalized input (for reproducibility tracking)"
+    )
+    cache_key: str | None = Field(
+        default=None,
+        description="Cache key used for LLM response (None if cache miss)"
+    )
+    prompt_version: str | None = Field(
+        default=None,
+        description="Version of system prompt used"
+    )
+    schema_version: str | None = Field(
+        default=None,
+        description="Version of JSON schema used"
+    )
 
 
 class AgentSummary(BaseModel):

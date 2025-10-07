@@ -476,6 +476,35 @@ class VectorExtractor:
             }
             return []
     
+    def get_text_runs_all(self, page_num: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get all text runs from a page with bboxes in feet.
+        
+        Each text run includes:
+        - text: str
+        - bbox: [minx, miny, maxx, maxy] in feet
+        
+        Args:
+            page_num: Page index (0-based)
+            
+        Returns:
+            List of text run dicts suitable for elevation extraction
+        """
+        # Build index if not already cached
+        text_runs = self.build_text_index(page_num)
+        
+        # Convert TextRun objects to dicts
+        result = []
+        for run in text_runs:
+            if hasattr(run, 'text') and hasattr(run, 'bbox'):
+                result.append({
+                    "text": run.text,
+                    "bbox": run.bbox  # Already in feet from unified text API
+                })
+        
+        logger.debug(f"Retrieved {len(result)} text runs for elevation extraction")
+        return result
+    
     def get_text_stats(self, page_num: int = 0) -> Dict[str, Any]:
         """
         Get text extraction statistics for a page.

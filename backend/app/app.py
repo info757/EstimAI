@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
         from backend.app.api.v1.routes.export import router as export_router
         from backend.app.api.v1.routes.demo import router as demo_router
         from backend.app.api.v1.routes.debug import router as debug_router
+        from backend.app.api.v1.routes.cache import router as cache_router
         # Legacy routers (for /api/projects, /api/jobs, etc.)
         from backend.app.api.routes_projects import router as projects_router
         from backend.app.api.routes_jobs import router as jobs_router
@@ -84,6 +85,7 @@ def create_app() -> FastAPI:
         app.include_router(export_router, tags=["export"])
         app.include_router(demo_router, tags=["demo"])
         app.include_router(debug_router, tags=["debug"])
+        app.include_router(cache_router, tags=["cache"])
 
         # Also mount under /api prefix for frontend compatibility
         api = APIRouter(prefix="/api")

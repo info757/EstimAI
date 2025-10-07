@@ -119,7 +119,7 @@ def detect_water_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
         return _attach_labels_and_qa(pipes, texts, "water")
     
     # Real pipeline
-    logger.info("Detecting water network using Apryse + LLM pipeline")
+    logger.info("Detecting water network using Takeoff AI Agent")
     
     if not pdf_path:
         if USE_DEMO:
@@ -305,6 +305,83 @@ def detect_water_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
             
             pipe_dicts.append(pipe_dict)
         
+        # Step 6.5: Extract elevations and calculate depths
+        logger.info(f"Extracting elevations for {len(pipe_dicts)} water pipes...")
+        
+        text_runs = extractor.get_text_runs_all(page_num=0)
+        logger.info(f"  Retrieved {len(text_runs)} text runs for elevation extraction")
+        
+        elev_stats = {"both": 0, "one": 0, "none": 0, "depth_calculated": 0}
+        
+        for i, pipe_dict in enumerate(pipe_dicts):
+            detection = water_detections[i] if i < len(water_detections) else None
+            polyline = None
+            if detection:
+                polyline = next((p for p in polylines if p.id == detection.polyline_id), None)
+            
+            if not polyline or not polyline.points or len(polyline.points) < 2:
+                logger.debug(f"Skipping elevation for {pipe_dict['id']}: no geometry")
+                elev_stats["none"] += 1
+                continue
+            
+            from backend.app.services.ingest.elevation_extractor import (
+                extract_pipe_elevations,
+                create_s_profile_from_inverts,
+                estimate_ground_elevation
+            )
+            
+            poly_dict = {
+                "id": polyline.id,
+                "vertices": polyline.points,
+                "bbox": polyline.bbox
+            }
+            
+            invert_in, invert_out = extract_pipe_elevations(poly_dict, text_runs, search_radius_ft=10.0)
+            
+            if invert_in and invert_out:
+                elev_stats["both"] += 1
+            elif invert_in or invert_out:
+                elev_stats["one"] += 1
+            else:
+                elev_stats["none"] += 1
+            
+            s_profile = create_s_profile_from_inverts(invert_in, invert_out, pipe_dict["length_ft"])
+            ground_elev = estimate_ground_elevation(list(polyline.bbox), surface_sampler=None, default_elevation=100.0)
+            
+            if s_profile:
+                def ground_at_s(station: float) -> float:
+                    return ground_elev
+                
+                samples = sample_depth_along_run(s_profile, ground_at_s, pipe_dict["mat"], pipe_dict["dia_in"], n_samples=20)
+                summary = summarize_depth(samples, "water")
+                
+                pipe_dict["avg_depth_ft"] = summary.avg_depth_ft
+                pipe_dict["extra"]["min_depth_ft"] = summary.min_depth_ft
+                pipe_dict["extra"]["max_depth_ft"] = summary.max_depth_ft
+                pipe_dict["extra"]["p95_depth_ft"] = summary.p95_depth_ft
+                pipe_dict["extra"]["trench_volume_cy"] = summary.trench_volume_cy
+                pipe_dict["extra"]["invert_in_ft"] = invert_in
+                pipe_dict["extra"]["invert_out_ft"] = invert_out
+                pipe_dict["extra"]["ground_elev_ft"] = ground_elev
+                
+                elev_stats["depth_calculated"] += 1
+                
+                ie_in_str = f"{invert_in:.1f}" if invert_in is not None else "N/A"
+                ie_out_str = f"{invert_out:.1f}" if invert_out is not None else "N/A"
+                logger.debug(
+                    f"{pipe_dict['id']}: depth={summary.avg_depth_ft:.1f}ft "
+                    f"(IE_IN={ie_in_str}, IE_OUT={ie_out_str}, GL={ground_elev:.1f})"
+                )
+            else:
+                pipe_dict["avg_depth_ft"] = None
+                pipe_dict["extra"]["depth_unavailable"] = True
+                pipe_dict["extra"]["depth_unavailable_reason"] = "Missing invert elevations"
+                logger.debug(f"{pipe_dict['id']}: Cannot calculate depth (no inverts found)")
+        
+        logger.info(f"📏 Elevation extraction complete:")
+        logger.info(f"  Both inverts: {elev_stats['both']}, One invert: {elev_stats['one']}, None: {elev_stats['none']}")
+        logger.info(f"  Depths calculated: {elev_stats['depth_calculated']} / {len(pipe_dicts)} pipes")
+        
         extractor.close()
         
         # QA flags
@@ -317,7 +394,9 @@ def detect_water_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
         return {
             "nodes": nodes,
             "pipes": pipe_dicts,
-            "qa_flags": qa_flags
+            "qa_flags": qa_flags,
+            "all_detections": detections,  # Include ALL detections (for unknown tracking)
+            "classified_ids": {p["id"] for p in pipe_dicts}  # IDs that made it into this network
         }
     
     except Exception as e:

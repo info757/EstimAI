@@ -43,6 +43,26 @@ jobs:
           . .venv/bin/activate
           pytest -q backend/tests/test_mvp_e2e.py -m e2e
 
+  consistency:
+    runs-on: ubuntu-latest
+    env:
+      ESTIMAI_SEED: "42"
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install -U pip
+          pip install -r backend/requirements.txt
+      - name: Consistency test (10x runs)
+        run: |
+          . .venv/bin/activate
+          pytest -q backend/tests/test_llm_consistency.py -m consistency
+
   lint:
     runs-on: ubuntu-latest
     steps:

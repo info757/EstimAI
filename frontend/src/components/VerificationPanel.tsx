@@ -194,25 +194,6 @@ export function VerificationPanel({ sessionId }: VerificationPanelProps) {
 
           {data && (
             <>
-              {/* Pipeline Info */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-gray-700">Pipeline Components</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full ${data.summary.pipeline?.apryse_enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="text-gray-600">
-                      Apryse PDFNet: {data.summary.pipeline?.apryse_enabled ? 'Active' : 'Disabled'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-3 h-3 rounded-full ${data.summary.pipeline?.llm_enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="text-gray-600">
-                      LLM: {data.summary.pipeline?.llm_model || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               {/* Scale Proof */}
               {data.scale_info && (
                 <div className="space-y-2">
@@ -249,10 +230,6 @@ export function VerificationPanel({ sessionId }: VerificationPanelProps) {
                         <div className="text-gray-500 text-xs">Max Depth</div>
                         <div className="font-semibold">{data.depth_stats.max_depth_ft.toFixed(1)}'</div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                      <span className="text-sm text-gray-600">Ground Source:</span>
-                      {getGroundSourceBadge(data.depth_stats.ground_source)}
                     </div>
                   </div>
                 </div>

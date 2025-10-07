@@ -57,6 +57,18 @@ def check_pipe_cover_requirements(pipe: Dict[str, Any], discipline: str, config:
         return flags
     
     extra = pipe["extra"]
+    
+    # Check if depth calculation was possible
+    if extra.get("depth_unavailable"):
+        reason = extra.get("depth_unavailable_reason", "Unknown reason")
+        flags.append(QAFlag(
+            code="DEPTH_UNAVAILABLE",
+            message=f"Cannot calculate depth: {reason}",
+            geom_id=pipe.get("id")
+        ))
+        # Skip other checks if depth unavailable
+        return flags
+    
     min_cover_ft = config.get("min_cover_ft", {}).get(discipline, 1.5)
     
     # Check minimum depth (cover to pipe crown)

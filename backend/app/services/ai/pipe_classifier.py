@@ -83,93 +83,232 @@ class PipeClassifier:
         self.model_name = model_name or settings.VISION_MODEL
         self.use_seed = settings.ESTIMAI_SEED is not None
         
+        # Track cache metadata from last classification
+        self.last_cache_metadata: Dict[str, Any] = {}
+        
         logger.info(f"PipeClassifier initialized with model: {self.model_name}")
         if self.use_seed:
             logger.info(f"Deterministic mode enabled (seed: {settings.ESTIMAI_SEED})")
     
     def classify(self, patches: List[Dict[str, Any]]) -> List[PipeDetection]:
         """
-        Classify polylines as pipes and extract attributes.
+        Classify polylines as pipes and extract attributes with automatic batching.
+        
+        For large datasets (>15 patches), automatically splits into batches to prevent
+        LLM timeouts and improve reliability.
         
         Args:
-            patches: List of candidate polylines with context, each containing:
-                - polyline_id: str
-                - length_ft: float (real-world length)
-                - bbox: tuple (minx, miny, maxx, maxy)
-                - layer: str | None (layer name)
-                - color: str | None (stroke color)
-                - nearby_text: list[str] (text annotations within proximity)
-                - image_crop: bytes | None (optional image of the area)
+            patches: List of candidate polylines with context
                 
         Returns:
             List of PipeDetection objects with attributes and confidence
-            
-        Example:
-            patches = [
-                {
-                    "polyline_id": "vec_0_42",
-                    "length_ft": 125.5,
-                    "layer": "STORM SEWER",
-                    "nearby_text": ["12\" PVC", "0.5% SLOPE"]
-                }
-            ]
-            detections = classifier.classify(patches)
-            # detections[0].attrs.dia_in == 12.0
-            # detections[0].attrs.material == "pvc"
         """
         if not patches:
             return []
         
-        logger.info(f"Classifying {len(patches)} candidate polylines")
+        # Automatic batching for reliability
+        BATCH_SIZE = 15  # Sweet spot: fast enough, small enough to avoid timeouts
+        
+        if len(patches) <= BATCH_SIZE:
+            # Small dataset, process all at once
+            logger.info(f"Classifying {len(patches)} candidate polylines (single batch)")
+            return self._classify_batch(patches)
+        else:
+            # Large dataset, use batching
+            logger.info(f"Classifying {len(patches)} candidate polylines ({(len(patches) + BATCH_SIZE - 1) // BATCH_SIZE} batches of {BATCH_SIZE})")
+            
+            all_detections = []
+            for i in range(0, len(patches), BATCH_SIZE):
+                batch = patches[i:i+BATCH_SIZE]
+                batch_num = (i // BATCH_SIZE) + 1
+                total_batches = (len(patches) + BATCH_SIZE - 1) // BATCH_SIZE
+                
+                logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} patches)")
+                detections = self._classify_batch(batch)
+                all_detections.extend(detections)
+                logger.info(f"Batch {batch_num}/{total_batches} complete: {len(detections)} detections")
+            
+            logger.info(f"All batches complete: {len(all_detections)} total detections from {len(patches)} candidates")
+            return all_detections
+    
+    def _classify_batch(self, patches: List[Dict[str, Any]]) -> List[PipeDetection]:
+        """
+        Classify a single batch of patches with automatic retry on improbable results.
+        
+        Includes token budgeting to prevent context overflow.
+        """
+        from backend.app.services.ai.validation import validate_classification_result, log_run_invariants
+        from backend.app.services.ai.token_budget import tile_large_context, log_token_stats
+        from backend.app.core.config import settings
         
         # Build context for LLM
         context = self._build_context(patches)
+        
+        # Get prompt
+        prompt = self._get_classification_prompt()
+        
+        # Check if context needs tiling
+        tiled_contexts = tile_large_context(prompt, context)
+        
+        if len(tiled_contexts) > 1:
+            logger.info(f"Context tiled into {len(tiled_contexts)} chunks")
+            
+            # Process each tile and merge results
+            all_detections = []
+            for i, tile_context in enumerate(tiled_contexts):
+                logger.info(f"Processing tile {i+1}/{len(tiled_contexts)}...")
+                tile_detections = self._classify_tile(tile_context, prompt)
+                all_detections.extend(tile_detections)
+            
+            logger.info(f"Merged {len(all_detections)} detections from {len(tiled_contexts)} tiles")
+            return all_detections
+        else:
+            # Single context, process normally
+            return self._classify_tile(context, prompt)
+    
+    def _classify_tile(self, context: Dict[str, Any], prompt: str) -> List[PipeDetection]:
+        """
+        Classify a single tile (or full context if no tiling needed).
+        
+        Includes validation and retry logic.
+        """
+        from backend.app.services.ai.validation import validate_classification_result, log_run_invariants
+        from backend.app.services.ai.token_budget import log_token_stats
+        from backend.app.core.config import settings
+        
+        # Extract metadata for validation
+        candidate_count = len(context.get("candidates", []))
+        legend_present = context.get("legend_ontology") is not None
+        label_count = sum(len(c.get("nearby_text", [])) for c in context.get("candidates", []))
         
         # Get prompt and schema
         prompt = self._get_classification_prompt()
         schema = self._get_response_schema()
         
-        try:
-            # Call LLM
-            result = self._call_llm(prompt, context, schema)
-            
-            # Parse results into PipeDetection objects
-            detections = self._parse_llm_response(result, patches)
-            
-            logger.info(f"Classified {len(detections)} pipes from {len(patches)} candidates")
-            return detections
+        # Log token stats
+        log_token_stats(prompt, context)
         
+        # Attempt 1: Initial classification
+        try:
+            result = self._call_llm(prompt, context, schema)
+            # Note: patches are embedded in context["candidates"], pass context for reference
+            detections = self._parse_llm_response(result, context.get("candidates", []))
+            
+            # Log run-time invariants
+            log_run_invariants(
+                candidate_count=candidate_count,
+                label_count=label_count,
+                legend_present=legend_present,
+                model=self.model_name,
+                temperature=0,
+                seed=settings.ESTIMAI_SEED,
+                token_budget_used=None,  # TODO: wire from LLM response
+                content_hash=self.last_cache_metadata.get("content_hash"),
+                detection_count=len(detections)
+            )
+            
+            # Validate result
+            validation = validate_classification_result(
+                detections=detections,
+                candidate_count=candidate_count,
+                legend_present=legend_present,
+                label_count=label_count
+            )
+            
+            if validation.should_retry:
+                logger.warning(f"🔄 Retry attempt 1/1: {validation.reason}")
+                
+                # Attempt 2: Retry with same parameters (deterministic)
+                try:
+                    result_retry = self._call_llm(prompt, context, schema)
+                    detections_retry = self._parse_llm_response(result_retry, context.get("candidates", []))
+                    
+                    logger.info(f"🔄 Retry result: {len(detections_retry)} detections")
+                    
+                    # If retry produced better results, use them
+                    if len(detections_retry) > len(detections):
+                        logger.info(f"✅ Retry improved: {len(detections)} → {len(detections_retry)}")
+                        detections = detections_retry
+                    else:
+                        # Still zero or low, flag for HITL
+                        logger.warning(f"⚠️ QA_FLAG: {validation.reason} (persists after retry)")
+                        # Add QA flag to first detection or create one
+                        if detections:
+                            if not hasattr(detections[0], 'qa_flags'):
+                                detections[0].qa_flags = []
+                            detections[0].qa_flags.append(validation.reason)
+                
+                except Exception as e_retry:
+                    logger.error(f"Retry failed: {e_retry}")
+                    # Continue with original result
+            
+            return detections
+            
         except Exception as e:
-            logger.error(f"Classification failed: {e}")
-            # Return empty list with reasonable defaults
-            return self._fallback_classification(patches)
+            logger.error(f"Tile classification failed: {e}")
+            return self._fallback_classification(context.get("candidates", []))
     
     def _build_context(self, patches: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Build LLM context from patches."""
+        """
+        Build canonicalized LLM context from patches.
+        
+        Uses production canonicalization to ensure deterministic hashing.
+        """
+        from backend.app.services.ai.canonicalize import sanitize_number, stable_poly_id
+        
         candidates = []
         
         for patch in patches:
+            # Extract vertices for stable ID generation
+            bbox = patch.get("bbox", [0, 0, 0, 0])
+            vertices = patch.get("vertices", [])
+            
+            # If no vertices, approximate from bbox
+            if not vertices and bbox:
+                vertices = [
+                    [bbox[0], bbox[1]],  # bottom-left
+                    [bbox[2], bbox[3]]   # top-right
+                ]
+            
+            # Generate stable ID
+            poly_id = patch.get("polyline_id", "")
+            if not poly_id or len(poly_id) < 10:
+                poly_id = stable_poly_id(vertices) if vertices else f"poly_{hash(str(bbox))}"
+            
+            # Canonicalize candidate
             candidate = {
-                "id": patch.get("polyline_id", "unknown"),
-                "length_ft": patch.get("length_ft", 0.0),
-                "layer": patch.get("layer", "unknown"),
-                "color": patch.get("color"),
-                "nearby_text": patch.get("nearby_text", []),
+                "id": poly_id,
+                "length_ft": sanitize_number(patch.get("length_ft")),
+                "layer": patch.get("layer") or None,  # Explicit null
+                "color": patch.get("color") or None,
+                "nearby_text": sorted(patch.get("nearby_text", [])),  # Stable sort
+                "bbox": [sanitize_number(x) for x in bbox],
             }
             candidates.append(candidate)
         
-        return {
+        # Stable sort by ID
+        candidates.sort(key=lambda c: c["id"])
+        
+        # Build full context with metadata
+        context = {
             "task": "classify_utility_pipes",
             "candidates": candidates,
+            "legend_ontology": None,  # Explicit null if not provided
+            "scale_info": {
+                "feet_per_point": None,  # TODO: wire scale
+                "units": "feet"
+            },
             "instructions": (
                 "For each candidate polyline, determine if it's a utility pipe "
                 "and extract its attributes (discipline, material, diameter). "
                 "Use layer names and nearby text annotations as primary evidence."
             )
         }
+        
+        return context
     
     def _get_classification_prompt(self) -> str:
-        """Get the classification prompt template."""
+        """Get the classification prompt template with anti-collapse guardrails."""
         return """You are a construction plan analyzer specialized in utility pipe detection.
 
 Given polylines with context (layer, nearby text, length), classify each as:
@@ -178,7 +317,7 @@ Given polylines with context (layer, nearby text, length), classify each as:
 - Diameter: in inches (extract from text like "12\\"" or "8 IN")
 - Confidence: 0.0 to 1.0 (how certain you are)
 
-Rules:
+Evidence Rules:
 1. Layer names provide strong hints:
    - "STORM", "SD" → storm
    - "SANITARY", "SAN", "SEWER" → sanitary  
@@ -194,7 +333,11 @@ Rules:
    - Sanitary: pvc, vitrified_clay, concrete
    - Water: ductile_iron, pvc, copper
 
-4. Provide reasoning for each classification.
+CRITICAL GUARDRAILS:
+- Classify each polyline INDEPENDENTLY. Do not adjust outputs to match an assumed global distribution.
+- If you cite at least one label or legend clue for a polyline, you MUST choose a type (storm/sanitary/water); only use null/unknown when there is truly no evidence.
+- Keep "reason" concise (≤25 words). Cite specific evidence (layer name, nearby text).
+- Include cited labels in "evidence_refs" array.
 
 Return JSON object with this exact format:
 {
@@ -205,14 +348,21 @@ Return JSON object with this exact format:
       "material": "pvc",
       "dia_in": 12.0,
       "confidence": 0.9,
-      "reason": "Layer 'STORM SEWER' + nearby text '12\\" PVC'"
+      "reason": "Layer STORM SEWER, text 12\\" PVC",
+      "evidence_refs": ["12\\" PVC"]
     }
   ]
 }
 """
     
     def _get_response_schema(self) -> Dict[str, Any]:
-        """Get JSON schema for LLM response validation."""
+        """
+        Get JSON schema for LLM response validation with anti-collapse guardrails.
+        
+        New requirements:
+        - evidence_refs must be non-empty if discipline != null
+        - reason must be ≤25 words
+        """
         return {
             "type": "object",
             "properties": {
@@ -229,9 +379,17 @@ Return JSON object with this exact format:
                             "material": {"type": ["string", "null"]},
                             "dia_in": {"type": ["number", "null"]},
                             "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                            "reason": {"type": "string"}
+                            "reason": {
+                                "type": "string",
+                                "description": "Concise reasoning (≤25 words)"
+                            },
+                            "evidence_refs": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of cited labels/text (required if discipline != null)"
+                            }
                         },
-                        "required": ["polyline_id"]
+                        "required": ["polyline_id", "reason"]
                     }
                 }
             },
@@ -247,8 +405,29 @@ Return JSON object with this exact format:
         """
         Call LLM with classification request.
         
+        Logs content hash for reproducibility tracking.
         Uses existing LLM client if available, with deterministic seed if enabled.
         """
+        from backend.app.services.ai.canonicalize import content_hash
+        
+        # Create content hash for reproducibility
+        from backend.app.services.ai.llm_cache import PROMPT_VERSION, SCHEMA_VERSION, get_cache_key
+        
+        hash_full = content_hash(context)
+        hash_short = hash_full[:16]
+        cache_key_full = get_cache_key("gpt-4o-mini", PROMPT_VERSION, SCHEMA_VERSION, hash_full)
+        
+        # Store metadata for agent response
+        self.last_cache_metadata = {
+            "content_hash": hash_full,
+            "content_hash_short": hash_short,
+            "cache_key": cache_key_full,
+            "prompt_version": PROMPT_VERSION,
+            "schema_version": SCHEMA_VERSION,
+        }
+        
+        logger.info(f"🔑 Content hash: {hash_short} ({len(context.get('candidates', []))} candidates)")
+        
         try:
             # Try to use existing LLM client
             from backend.app.core.llm import llm_call_json
@@ -269,6 +448,11 @@ Return JSON object with this exact format:
             except RuntimeError:
                 # No loop running, safe to create one
                 result = asyncio.run(llm_call_json(prompt=prompt, context=context, schema=schema))
+            
+            logger.info(f"✅ LLM response received for hash {hash_short}")
+            
+            # Update metadata with token usage (if available from response metadata)
+            # This will be set by the LLM client
             
             # Result should be a dict with a list key, or directly a list
             if isinstance(result, list):
@@ -323,13 +507,22 @@ Return JSON object with this exact format:
             elif "CONC" in nearby_text:
                 material = "concrete"
             
+            # Collect evidence refs
+            evidence_refs = []
+            if discipline:
+                if layer:
+                    evidence_refs.append(f"layer:{layer[:20]}")
+                if nearby_text:
+                    evidence_refs.append(nearby_text[:30])
+            
             results.append({
                 "polyline_id": candidate["id"],
                 "discipline": discipline,
                 "material": material,
                 "dia_in": dia_in,
                 "confidence": 0.6 if discipline else 0.3,
-                "reason": f"Heuristic: layer={layer}, text={nearby_text[:50]}"
+                "reason": f"Heuristic: layer={layer[:15]}, text={nearby_text[:20]}",
+                "evidence_refs": evidence_refs
             })
         
         return results
@@ -339,16 +532,39 @@ Return JSON object with this exact format:
         llm_result: List[Dict[str, Any]], 
         original_patches: List[Dict[str, Any]]
     ) -> List[PipeDetection]:
-        """Parse LLM response into validated PipeDetection objects."""
+        """
+        Parse LLM response into validated PipeDetection objects.
+        
+        Enforces anti-collapse guardrails:
+        - Truncates reason to 25 words
+        - Warns if discipline != null but evidence_refs is empty
+        """
         detections = []
         
         for item in llm_result:
             try:
+                discipline = item.get("discipline")
+                evidence_refs = item.get("evidence_refs", [])
+                reason = item.get("reason", "LLM classification")
+                
+                # Guardrail 1: Truncate reason to ≤25 words
+                reason_words = reason.split()
+                if len(reason_words) > 25:
+                    reason = " ".join(reason_words[:25]) + "..."
+                    logger.debug(f"Truncated reason for {item['polyline_id']} (was {len(reason_words)} words)")
+                
+                # Guardrail 2: Warn if discipline set but no evidence cited
+                if discipline and not evidence_refs:
+                    logger.warning(
+                        f"⚠️ Contract violation: {item['polyline_id']} has discipline={discipline} "
+                        f"but evidence_refs is empty. Reason: {reason}"
+                    )
+                
                 # Build PipeAttr
                 attrs = PipeAttr(
                     material=item.get("material"),
                     dia_in=item.get("dia_in"),
-                    discipline=item.get("discipline"),
+                    discipline=discipline,
                     confidence=item.get("confidence", 0.5)
                 )
                 
@@ -356,7 +572,7 @@ Return JSON object with this exact format:
                 detection = PipeDetection(
                     polyline_id=item["polyline_id"],
                     attrs=attrs,
-                    reason=item.get("reason", "LLM classification")
+                    reason=reason
                 )
                 
                 detections.append(detection)

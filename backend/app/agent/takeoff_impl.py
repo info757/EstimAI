@@ -159,8 +159,18 @@ class DefaultTakeoffAgent:
                     for network_name, network_data in self.networks.items():
                         qa_flags = network_data.get('qa_flags', [])
                         for flag in qa_flags:
-                            flag_name = flag if isinstance(flag, str) else str(flag)
-                            qa_counts[flag_name] = qa_counts.get(flag_name, 0) + 1
+                            # Properly serialize QA flag
+                            if isinstance(flag, str):
+                                flag_key = flag
+                            elif isinstance(flag, dict):
+                                flag_key = flag.get('code', str(flag))
+                            elif hasattr(flag, 'code'):
+                                # QAFlag object - use code as key
+                                flag_key = flag.code
+                            else:
+                                flag_key = str(flag)
+                            
+                            qa_counts[flag_key] = qa_counts.get(flag_key, 0) + 1
                     return qa_counts
             
             extract = _ExtractWrapper(networks, surface)
