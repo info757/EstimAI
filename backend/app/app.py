@@ -132,19 +132,35 @@ def create_app() -> FastAPI:
         except Exception as e:
             print(f"⚠️ Database migrations failed: {e}")
 
-        # Log text extraction backend configuration
+        # Log critical configuration on startup
         try:
             from backend.app.core.config import settings
             import logging
+            import os
             logger = logging.getLogger(__name__)
-            text_backend = settings.get_text_backend()
-            logger.info(f"📝 TextBackend={text_backend}")
-            print(f"📝 TextBackend={text_backend}")  # Also print for visibility
+            
+            # Log all critical detection pipeline configuration
+            config_summary = {
+                "APR_USE_APRYSE": os.getenv("APR_USE_APRYSE", "0"),
+                "ESTIMAI_USE_DEMO": os.getenv("ESTIMAI_USE_DEMO", "0"),
+                "ESTIMAI_TEXT_BACKEND": settings.get_text_backend(),
+                "ESTIMAI_PIPE_MIN_CONF": os.getenv("ESTIMAI_PIPE_MIN_CONF", "0.35"),
+                "ESTIMAI_DEBUG": os.getenv("ESTIMAI_DEBUG", "0")
+            }
+            
+            print("\n" + "=" * 60)
+            print("EstimAI Detection Pipeline Configuration")
+            print("=" * 60)
+            for key, value in config_summary.items():
+                print(f"  {key}={value}")
+                logger.info(f"🔧 {key}={value}")
+            print("=" * 60 + "\n")
+            
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f"⚠️ Failed to log text backend: {e}")
-            print(f"⚠️ Failed to log text backend: {e}")
+            logger.warning(f"⚠️ Failed to log configuration: {e}")
+            print(f"⚠️ Failed to log configuration: {e}")
         
         # Initialize Apryse PDFNet if enabled
         try:
