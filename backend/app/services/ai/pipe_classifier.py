@@ -254,15 +254,21 @@ Return JSON object with this exact format:
             from backend.app.core.llm import llm_call_json
             import asyncio
             
-            # Run async LLM call
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # Check if there's already a running event loop
             try:
-                result = loop.run_until_complete(
-                    llm_call_json(prompt=prompt, context=context, schema=schema)
-                )
-            finally:
-                loop.close()
+                loop = asyncio.get_running_loop()
+                # There's already a loop running (FastAPI/uvicorn)
+                # We need to run the async call in a thread pool
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        llm_call_json(prompt=prompt, context=context, schema=schema)
+                    )
+                    result = future.result(timeout=30)  # 30 second timeout
+            except RuntimeError:
+                # No loop running, safe to create one
+                result = asyncio.run(llm_call_json(prompt=prompt, context=context, schema=schema))
             
             # Result should be a dict with a list key, or directly a list
             if isinstance(result, list):
@@ -275,11 +281,11 @@ Return JSON object with this exact format:
                 logger.warning(f"Unexpected LLM response format: {type(result)}")
                 return []
         
-        except ImportError:
-            logger.warning("LLM client not available, using fallback")
+        except ImportError as e:
+            logger.warning(f"LLM client not available, using fallback: {e}")
             return self._fallback_llm_response(context)
         except Exception as e:
-            logger.error(f"LLM call failed: {e}")
+            logger.error(f"LLM call failed: {e}", exc_info=True)
             return self._fallback_llm_response(context)
     
     def _fallback_llm_response(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:

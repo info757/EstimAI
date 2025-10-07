@@ -212,6 +212,12 @@ def detect_water_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                     should_include = True
                     reason = f"Rule-based: {rule_method}"
                     assignment_method = rule_method
+                    
+                    # Boost confidence for rule-based assignments
+                    if d.attrs.confidence is not None and d.attrs.confidence < 0.50:
+                        original_conf = d.attrs.confidence
+                        d.attrs.confidence = 0.50
+                        logger.debug(f"Boosted confidence for {d.polyline_id}: {original_conf:.2f} → 0.50 (rule-based)")
                 else:
                     assignment_method = rule_method if assigned_discipline else "unknown"
             else:

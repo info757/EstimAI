@@ -214,7 +214,7 @@ def assign_discipline_by_rules(
             # PVC alone is ambiguous, continue to next rules
             pass
     
-    # Rule 2: Dominant legend token
+    # Rule 2: Dominant legend token (only if CLEAR winner, no ties)
     if legend_tokens:
         legend_text = ' '.join(legend_tokens).lower()
         
@@ -224,7 +224,11 @@ def assign_discipline_by_rules(
         water_score = sum(1 for tok in ['water', 'wat', 'wtr', 'c900', 'hydrant'] if tok in legend_text)
         
         max_score = max(storm_score, sanitary_score, water_score)
-        if max_score > 0:
+        
+        # Only assign if there's a CLEAR winner (no ties)
+        scores = [storm_score, sanitary_score, water_score]
+        if max_score > 0 and scores.count(max_score) == 1:
+            # Unique maximum - assign to winner
             if storm_score == max_score:
                 logger.debug(f"Assigned storm by legend tokens (score={storm_score})")
                 return 'storm', 'rule_legend'
@@ -234,6 +238,10 @@ def assign_discipline_by_rules(
             elif water_score == max_score:
                 logger.debug(f"Assigned water by legend tokens (score={water_score})")
                 return 'water', 'rule_legend'
+        elif max_score > 0:
+            # Tie detected - don't assign via legend (too ambiguous)
+            logger.debug(f"Legend tokens ambiguous: storm={storm_score}, sanitary={sanitary_score}, water={water_score} (skipping legend rule)")
+            # Continue to next rule (layer)
     
     # Rule 3: Layer hint patterns
     if layer_hint:

@@ -215,13 +215,33 @@ def get_scale_transform(doc: Any, page: Any) -> Tuple[float, Callable[[float, fl
     if doc is None or page is None:
         raise ApryseUnavailable("Document or page is None")
     
+    logger.info("🔍 Starting scale detection...")
+    
+    # Get page info for logging
+    try:
+        page_bbox = page.GetBox(1)  # MediaBox
+        page_width_pt = page_bbox.x2 - page_bbox.x1
+        page_height_pt = page_bbox.y2 - page_bbox.y1
+        logger.info(f"🔍 Page size: {page_width_pt:.1f} x {page_height_pt:.1f} points")
+    except:
+        logger.warning("🔍 Could not get page dimensions")
+    
+    # Get UserUnit
+    try:
+        user_unit = page.GetUserUnit() if hasattr(page, 'GetUserUnit') else 1.0
+        logger.info(f"🔍 Page UserUnit: {user_unit}")
+    except:
+        user_unit = 1.0
+        logger.info(f"🔍 Page UserUnit: 1.0 (default)")
+    
     # Strategy 1: Try to parse explicit scale bar text
+    logger.info("🔍 Strategy 1: Searching for explicit scale bar text...")
     scale_text, feet_per_inch = _try_parse_scale_bar(page)
     
     if feet_per_inch is not None:
         # Found explicit scale bar
         feet_per_point = feet_per_inch / 72.0
-        logger.info(f"✅ Explicit scale found: {scale_text} → {feet_per_point:.6f} ft/pt")
+        logger.info(f"✅ Decision: text_scale → {feet_per_point:.6f} ft/pt")
         
         # Create transform function
         def to_world_xy(x: float, y: float) -> Tuple[float, float]:
@@ -231,7 +251,8 @@ def get_scale_transform(doc: Any, page: Any) -> Tuple[float, Callable[[float, fl
         return (feet_per_point, to_world_xy)
     
     # Strategy 2: Derive from page default matrix and UserUnit
-    logger.warning("No explicit scale bar found, using page default matrix + UserUnit")
+    logger.info("🔍 Strategy 2: Deriving from page matrix + UserUnit...")
+    logger.warning("⚠️ No explicit scale bar found, attempting fallback")
     
     try:
         pdftron = _get_pdftron()
@@ -269,11 +290,11 @@ def get_scale_transform(doc: Any, page: Any) -> Tuple[float, Callable[[float, fl
         # So: feet_per_point = (user_unit / 72.0) / 12.0 * scale_factor
         feet_per_point = (user_unit * scale_factor) / 72.0 / 12.0
         
-        logger.warning(
-            f"Using derived scale: UserUnit={user_unit:.2f}, "
-            f"ScaleFactor={scale_factor:.2f} → {feet_per_point:.6f} ft/pt "
-            f"(⚠️ May be inaccurate - verify with known dimension)"
+        logger.info(
+            f"🔍 Computed: UserUnit={user_unit:.2f}, ScaleFactor={scale_factor:.2f} "
+            f"→ {feet_per_point:.6f} ft/pt"
         )
+        logger.warning(f"✅ Decision: title_block/matrix → {feet_per_point:.6f} ft/pt (may be inaccurate)")
         
         def to_world_xy(x: float, y: float) -> Tuple[float, float]:
             """Convert page coordinates to world coordinates in feet."""
@@ -282,10 +303,11 @@ def get_scale_transform(doc: Any, page: Any) -> Tuple[float, Callable[[float, fl
         return (feet_per_point, to_world_xy)
     
     except Exception as e:
-        logger.error(f"Failed to derive scale from page matrix: {e}")
+        logger.error(f"🔍 Strategy 2 failed: {e}")
         # Ultimate fallback: assume 1" = 20' (common engineering scale)
+        logger.info("🔍 Strategy 3: Using default engineering scale...")
         feet_per_point = 20.0 / 72.0  # 0.278 ft/pt
-        logger.warning(f"⚠️ Fallback to assumed scale: 1\" = 20' → {feet_per_point:.6f} ft/pt")
+        logger.warning(f"✅ Decision: default → 1\" = 20' → {feet_per_point:.6f} ft/pt (ASSUMED!)")
         
         def to_world_xy(x: float, y: float) -> Tuple[float, float]:
             return (x * feet_per_point, y * feet_per_point)
@@ -652,6 +674,7 @@ def _try_parse_scale_bar(page: Any) -> Tuple[Optional[str], Optional[float]]:
     - "1\"=30 FT" → 30.0 feet per inch
     """
     if not _pdfnet_available:
+        logger.warning("🔍 Scale detection: PDFNet not available")
         return (None, None)
     
     try:
@@ -663,17 +686,34 @@ def _try_parse_scale_bar(page: Any) -> Tuple[Optional[str], Optional[float]]:
         txt_extractor.Begin(page)
         all_text = txt_extractor.GetAsText()
         
+        # Log raw text for debugging
+        logger.info(f"🔍 Scale detection: Extracted {len(all_text)} chars from page")
+        
+        # Find potential scale strings (lines containing scale keywords)
+        scale_candidates = []
+        for line in all_text.split('\n')[:20]:  # Check first 20 lines
+            line_upper = line.upper()
+            if any(kw in line_upper for kw in ['SCALE', '1"', '1 IN', '1:', 'FT', 'FEET']):
+                scale_candidates.append(line.strip())
+        
+        if scale_candidates:
+            logger.info(f"🔍 Scale candidates found ({len(scale_candidates)}):")
+            for i, cand in enumerate(scale_candidates[:10]):
+                logger.info(f"   [{i+1}] '{cand[:80]}'")
+        else:
+            logger.warning("🔍 No scale candidate strings found in page text")
+        
         # Common scale bar patterns
         patterns = [
             # "1\" = 20'" or "1 IN = 20 FT" with flexible spacing
-            r'1\s*(?:"|IN|INCH)\s*=\s*(\d+(?:\.\d+)?)\s*(?:\'|FT|FEET)',
+            (r'1\s*(?:"|IN|INCH)\s*=\s*(\d+(?:\.\d+)?)\s*(?:\'|FT|FEET)', 'basic'),
             # "SCALE: 1\" = 20'"
-            r'SCALE\s*:?\s*1\s*(?:"|IN|INCH)\s*=\s*(\d+(?:\.\d+)?)\s*(?:\'|FT|FEET)',
+            (r'SCALE\s*:?\s*1\s*(?:"|IN|INCH)\s*=\s*(\d+(?:\.\d+)?)\s*(?:\'|FT|FEET)', 'with_keyword'),
             # "1:240" ratio format (1 inch = 240/12 = 20 feet)
-            r'1\s*:\s*(\d+)',
+            (r'1\s*:\s*(\d+)', 'ratio'),
         ]
         
-        for pattern in patterns:
+        for pattern, pattern_name in patterns:
             match = re.search(pattern, all_text, re.IGNORECASE)
             if match:
                 value = float(match.group(1))
@@ -686,14 +726,15 @@ def _try_parse_scale_bar(page: Any) -> Tuple[Optional[str], Optional[float]]:
                     feet_per_inch = value
                 
                 scale_text = match.group(0).strip()
-                logger.info(f"Parsed scale bar: '{scale_text}' → {feet_per_inch} ft/in")
+                logger.info(f"✅ Scale matched! Pattern: {pattern_name}, Text: '{scale_text}' → {feet_per_inch} ft/in")
                 return (scale_text, feet_per_inch)
         
         # No scale found
+        logger.warning("🔍 Scale: not found (no regex matched)")
         return (None, None)
     
     except Exception as e:
-        logger.warning(f"Scale bar parsing failed: {e}")
+        logger.warning(f"🔍 Scale bar parsing failed: {e}")
         return (None, None)
 
 

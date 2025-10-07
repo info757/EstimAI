@@ -266,6 +266,12 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                     should_include = True
                     reason = f"Rule-based: {rule_method}"
                     assignment_method = rule_method
+                    
+                    # Boost confidence for rule-based assignments
+                    if d.attrs.confidence is not None and d.attrs.confidence < 0.50:
+                        original_conf = d.attrs.confidence
+                        d.attrs.confidence = 0.50  # Boost to pass threshold
+                        logger.debug(f"Boosted confidence for {d.polyline_id}: {original_conf:.2f} → 0.50 (rule-based)")
                 else:
                     assignment_method = rule_method if assigned_discipline else "unknown"
             else:
@@ -276,12 +282,12 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                     assignment_method = "heuristic"
             
             if not should_include:
-                logger.debug(f"Excluding {d.polyline_id}: {reason}")
+                logger.debug(f"Excluding {d.polyline_id}: {reason} (conf={d.attrs.confidence})")
                 if assignment_method:
                     assignment_stats[assignment_method] = assignment_stats.get(assignment_method, 0) + 1
                 continue
             
-            # Check confidence threshold
+            # Check confidence threshold (after potential boosting)
             if d.attrs.confidence is not None and d.attrs.confidence < MIN_CONFIDENCE:
                 logger.debug(f"Excluding {d.polyline_id}: confidence {d.attrs.confidence:.2f} < {MIN_CONFIDENCE}")
                 continue
