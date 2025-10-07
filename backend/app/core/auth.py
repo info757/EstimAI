@@ -11,7 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt.exceptions import InvalidTokenError
 
-from .config import get_settings
+from .config import settings
 
 # OAuth2 scheme for Bearer token authentication
 oauth2_scheme = HTTPBearer()
@@ -38,7 +38,7 @@ def create_access_token(data: dict, expires_minutes: int = None) -> str:
     Returns:
         Encoded JWT token string
     """
-    settings = get_settings()
+    # settings already imported at module level
     
     if expires_minutes is None:
         expires_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -56,8 +56,8 @@ def create_access_token(data: dict, expires_minutes: int = None) -> str:
     # Encode token
     encoded_jwt = jwt.encode(
         to_encode, 
-        settings.JWT_SECRET, 
-        algorithm=settings.JWT_ALG
+        settings.SECRET_KEY or "dev-secret-key-change-in-production", 
+        algorithm=settings.ALGORITHM
     )
     
     return encoded_jwt
@@ -76,14 +76,14 @@ def decode_token(token: str) -> dict:
     Raises:
         HTTPException: If token is invalid or expired
     """
-    settings = get_settings()
+    # settings already imported at module level
     
     try:
         # Decode token
         payload = jwt.decode(
             token, 
-            settings.JWT_SECRET, 
-            algorithms=[settings.JWT_ALG]
+            settings.SECRET_KEY or "dev-secret-key-change-in-production", 
+            algorithms=[settings.ALGORITHM]
         )
         
         # Check if token has expired

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EstimAI - PDF Viewer & Takeoff</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .upload-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover {
+            border-color: #4CAF50;
+            background: #f9fff9;
+        }
+        .upload-zone.dragover {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .samples {
+            display: grid;
+            gap: 10px;
+        }
+        .sample-item {
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sample-item:hover {
+            background: #e8f5e9;
+            transform: translateX(4px);
+        }
+        .pdf-viewer {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .result-item {
+            padding: 12px;
+            background: #f0f7ff;
+            border-left: 4px solid #2196F3;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-green {
+            background: #4CAF50;
+            color: white;
+        }
+        .badge-blue {
+            background: #2196F3;
+            color: white;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ EstimAI - PDF Viewer & Takeoff</h1>
+        
+        <div class="grid">
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📤 Upload PDF</h2>
+                <div class="upload-zone" id="dropZone">
+                    <p>📄 Drop PDF here or click to browse</p>
+                    <p style="font-size: 14px; color: #666; margin-top: 8px;">Supports up to 50MB</p>
+                    <input type="file" id="fileInput" accept=".pdf">
+                    <button onclick="document.getElementById('fileInput').click()">Choose File</button>
+                </div>
+                <div id="uploadStatus"></div>
+            </div>
+
+            <!-- Sample PDFs -->
+            <div class="card">
+                <h2>📚 Sample PDFs</h2>
+                <div class="samples">
+                    <div class="sample-item" onclick="loadSample('280-utility-construction-plans.pdf')">
+                        <div>
+                            <strong>280-utility-construction-plans.pdf</strong>
+                            <div style="font-size: 12px; color: #666;">3.8MB - Full utility plans</div>
+                        </div>
+                        <span class="badge badge-green">View</span>
+                    </div>
+                    <div class="sample-item" onclick="loadSample('bid_test.pdf')">
+                        <div>
+                            <strong>bid_test.pdf</strong>
+                            <div style="font-size: 12px; color: #666;">3.8MB - Test plans</div>
+                        </div>
+                        <span class="badge badge-green">View</span>
+                    </div>
+                    <div class="sample-item" onclick="loadSample('sample.pdf')">
+                        <div>
+                            <strong>sample.pdf</strong>
+                            <div style="font-size: 12px; color: #666;">5KB - Quick test</div>
+                        </div>
+                        <span class="badge badge-green">View</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PDF Viewer -->
+            <div class="card full-width">
+                <h2>📄 PDF Viewer</h2>
+                <div id="pdfContainer">
+                    <iframe id="pdfViewer" class="pdf-viewer" src=""></iframe>
+                </div>
+            </div>
+
+            <!-- Takeoff Actions -->
+            <div class="card">
+                <h2>🎯 Run Takeoff</h2>
+                <p style="margin-bottom: 15px; color: #666;">Process the currently loaded PDF</p>
+                <button id="runTakeoffBtn" onclick="runTakeoff()" disabled>Run Takeoff</button>
+                <div id="takeoffStatus"></div>
+            </div>
+
+            <!-- Results -->
+            <div class="card">
+                <h2>📊 Results</h2>
+                <div id="results">
+                    <p style="color: #999;">Upload or select a PDF and run takeoff to see results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPdfFile = null;
+        let currentPdfUrl = null;
+
+        // Drag and drop
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const pdfViewer = document.getElementById('pdfViewer');
+        const runTakeoffBtn = document.getElementById('runTakeoffBtn');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('uploadStatus', 'error', 'Please select a PDF file');
+                return;
+            }
+
+            currentPdfFile = file;
+            
+            // Create object URL for viewer
+            if (currentPdfUrl) {
+                URL.revokeObjectURL(currentPdfUrl);
+            }
+            currentPdfUrl = URL.createObjectURL(file);
+            pdfViewer.src = currentPdfUrl;
+            
+            runTakeoffBtn.disabled = false;
+            showStatus('uploadStatus', 'success', `✓ Loaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+        }
+
+        function loadSample(filename) {
+            // Use Python SimpleHTTPServer or direct file access
+            const sampleUrl = `samples/${filename}`;
+            
+            // Try to load via fetch first to check if it exists
+            fetch(sampleUrl, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        pdfViewer.src = sampleUrl;
+                        currentPdfFile = null; // Clear uploaded file
+                        
+                        // Fetch the file as blob for takeoff
+                        return fetch(sampleUrl);
+                    } else {
+                        throw new Error('File not found via web server');
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    currentPdfFile = new File([blob], filename, { type: 'application/pdf' });
+                    runTakeoffBtn.disabled = false;
+                    showStatus('uploadStatus', 'success', `✓ Loaded sample: ${filename}`);
+                })
+                .catch(error => {
+                    showStatus('uploadStatus', 'error', 
+                        `Cannot load ${filename}. Start a web server: cd samples && python3 -m http.server 8080`);
+                });
+        }
+
+        async function runTakeoff() {
+            if (!currentPdfFile) {
+                showStatus('takeoffStatus', 'error', 'No PDF loaded');
+                return;
+            }
+
+            runTakeoffBtn.disabled = true;
+            showStatus('takeoffStatus', 'loading', 'Running takeoff...');
+            document.getElementById('results').innerHTML = '<div class="spinner"></div><p class="loading">Processing PDF with Apryse + LLM...</p>';
+
+            const formData = new FormData();
+            formData.append('session_id', 'viewer_' + Date.now());
+            formData.append('file', currentPdfFile);
+
+            try {
+                const response = await fetch('http://localhost:8000/v1/agent/takeoff', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    showStatus('takeoffStatus', 'error', `Error: ${result.error}`);
+                    document.getElementById('results').innerHTML = `<div class="error">${result.error}</div>`;
+                } else {
+                    showStatus('takeoffStatus', 'success', '✓ Takeoff completed!');
+                    displayResults(result);
+                }
+            } catch (error) {
+                showStatus('takeoffStatus', 'error', `Failed: ${error.message}`);
+                document.getElementById('results').innerHTML = `<div class="error">Error: ${error.message}<br><br>Make sure backend is running: ./backend/run_dev.sh</div>`;
+            } finally {
+                runTakeoffBtn.disabled = false;
+            }
+        }
+
+        function displayResults(result) {
+            const summary = result.summary || {};
+            const pipeline = summary.pipeline || {};
+            const networks = result.proposed_review?.payload?.networks || {};
+
+            let html = '';
+
+            // Pipeline info
+            html += '<div class="result-item">';
+            html += '<strong>🔧 Pipeline</strong><br>';
+            html += `Apryse: ${pipeline.apryse_enabled ? '✅' : '❌'}<br>`;
+            html += `LLM: ${pipeline.llm_model || 'N/A'}<br>`;
+            html += `Ground Source: ${pipeline.ground_source || 'unknown'}`;
+            html += '</div>';
+
+            // Summary
+            html += '<div class="result-item">';
+            html += '<strong>📊 Summary</strong><br>';
+            html += `Total Pipes: ${summary.pipes_total || 0}<br>`;
+            if (summary.qa_flags && Object.keys(summary.qa_flags).length > 0) {
+                html += `QA Flags: ${JSON.stringify(summary.qa_flags)}`;
+            }
+            html += '</div>';
+
+            // Networks
+            for (const [networkName, networkData] of Object.entries(networks)) {
+                const pipes = networkData.pipes || [];
+                if (pipes.length > 0) {
+                    html += '<div class="result-item">';
+                    html += `<strong>🚰 ${networkName.toUpperCase()}</strong><br>`;
+                    html += `Pipes: ${pipes.length}<br>`;
+                    
+                    const totalLF = pipes.reduce((sum, p) => sum + (p.length_ft || 0), 0);
+                    html += `Total LF: ${totalLF.toFixed(1)}<br>`;
+                    
+                    // Show first pipe details
+                    if (pipes[0]) {
+                        const p = pipes[0];
+                        html += `Example: ${p.mat || 'Unknown'} ${p.dia_in || 0}" - ${p.length_ft?.toFixed(1) || 0} LF`;
+                        if (p.avg_depth_ft) {
+                            html += ` @ ${p.avg_depth_ft.toFixed(1)}' deep`;
+                        }
+                    }
+                    html += '</div>';
+                }
+            }
+
+            // Warnings
+            if (result.warnings && result.warnings.length > 0) {
+                html += '<div class="result-item" style="border-left-color: #ff9800;">';
+                html += '<strong>⚠️ Warnings</strong><br>';
+                result.warnings.forEach(w => {
+                    html += `• ${w}<br>`;
+                });
+                html += '</div>';
+            }
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function showStatus(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'loading';
+            element.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+
+        // Initial state
+        document.getElementById('results').innerHTML = '<p style="color: #999;">Select a PDF and run takeoff to see results</p>';
+    </script>
+</body>
+</html>
+

@@ -2,7 +2,7 @@ from __future__ import annotations
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
 import tempfile, shutil, math
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Union
 
 from backend.vpdf.extract import extract_lines
 from backend.vpdf.scale import detect_scale_bar_ft_per_unit
@@ -66,7 +66,7 @@ def _as_polyline(lines) -> List[OverlayPolyline]:
         out.append({"polyline": polyline, "kind": "curb"})  # kind will be fixed by caller
     return out
 
-@router.post("/vector", response_model=TakeoffOK | TakeoffErr)
+@router.post("/vector", response_model=Union[TakeoffOK, TakeoffErr])
 async def takeoff_vector(
     file: UploadFile = File(...),
     page_index: int = Query(1, ge=0, description="0-based page index; 1 is typical Site Plan"),

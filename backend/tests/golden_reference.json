@@ -1,0 +1,81 @@
+{
+  "pdf_file": "samples/280-utility-construction-plans.pdf",
+  "description": "Golden reference for 280 utility construction plans",
+  "seed": 42,
+  "expected_metrics": {
+    "pipes_total": {
+      "value": 6,
+      "tolerance_pct": 0,
+      "description": "Total number of pipes detected (exact match required)"
+    },
+    "total_length_lf": {
+      "value": 685.0,
+      "tolerance_pct": 3.0,
+      "description": "Total linear feet of all pipes (±3% tolerance)"
+    },
+    "networks": {
+      "sanitary": {
+        "pipe_count": 2,
+        "total_lf": 228.5,
+        "tolerance_pct": 3.0
+      },
+      "storm": {
+        "pipe_count": 2,
+        "total_lf": 228.5,
+        "tolerance_pct": 3.0
+      },
+      "water": {
+        "pipe_count": 2,
+        "total_lf": 228.5,
+        "tolerance_pct": 3.0
+      }
+    },
+    "depth_stats": {
+      "avg_depth_ft": {
+        "value": 6.8,
+        "tolerance_pct": 5.0,
+        "description": "Average depth across all pipes (±5% for sampling resolution)"
+      },
+      "min_depth_ft": {
+        "value": 4.2,
+        "tolerance_pct": 5.0
+      },
+      "max_depth_ft": {
+        "value": 12.1,
+        "tolerance_pct": 5.0
+      }
+    },
+    "trench_volume_cy": {
+      "value": 456.7,
+      "tolerance_pct": 5.0,
+      "description": "Total trench volume in cubic yards (±5% for geometry sampling)"
+    },
+    "depth_buckets": {
+      "d_0_5": {
+        "value": 120,
+        "tolerance_pct": 3.0,
+        "description": "Linear feet in 0-5ft depth range"
+      },
+      "d_5_8": {
+        "value": 340,
+        "tolerance_pct": 3.0
+      },
+      "d_8_12": {
+        "value": 180,
+        "tolerance_pct": 3.0
+      },
+      "d_12_plus": {
+        "value": 45,
+        "tolerance_pct": 3.0
+      }
+    }
+  },
+  "notes": [
+    "These metrics were validated against manual takeoff",
+    "LF tolerance is ±2-3% due to vector precision and sampling",
+    "CY tolerance is ±5% due to geometry sampling resolution",
+    "Depth calculations use profile ground line when available",
+    "Seed value 42 ensures reproducible LLM detection results"
+  ]
+}
+

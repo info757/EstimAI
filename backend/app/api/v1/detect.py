@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 import math
 
-from backend.app.db import get_db
+# Lazy import - moved to function level to avoid circular imports
 from backend.app.schemas import DetectResponse, DetectItem
 from backend.app.models import CountItem as CountItemModel, CountStatus
 from backend.app.deps import get_current_user
@@ -22,7 +22,6 @@ async def detect_counts(
     file: str = Query(..., description="PDF filename"),
     page: int = Query(..., description="Page number (0-based)"),
     points_per_foot: float = Query(50.0, description="Points per foot scale factor"),
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -35,6 +34,13 @@ async def detect_counts(
     4. Return detection results
     """
     try:
+        # Lazy import to avoid circular dependencies
+        from backend.app.db import get_db
+        from backend.app.db import SessionLocal
+        
+        # Get database session
+        db = SessionLocal()
+        
         # Step 1: Resolve PDF path and validate
         pdf_path = Path(settings.get_files_dir()) / file
         if not pdf_path.exists():
@@ -130,21 +136,26 @@ async def detect_counts(
         
     except HTTPException:
         # Re-raise HTTP exceptions
+        db.close()
         raise
     except Exception as e:
         db.rollback()
+        db.close()
         print(f"Detection error: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Detection failed: {str(e)}"
         )
+    finally:
+        # Ensure database session is closed
+        if 'db' in locals():
+            db.close()
 
 
 @router.get("/detect/{file}/{page}")
 async def get_detection_results(
     file: str,
     page: int,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -158,6 +169,12 @@ async def get_detection_results(
         List of count items for the specified file and page
     """
     try:
+        # Lazy import to avoid circular dependencies
+        from backend.app.db import SessionLocal
+        
+        # Get database session
+        db = SessionLocal()
+        
         count_items = db.query(CountItemModel).filter(
             CountItemModel.file == file,
             CountItemModel.page == page
@@ -175,12 +192,15 @@ async def get_detection_results(
             status_code=500,
             detail=f"Error retrieving count items: {str(e)}"
         )
+    finally:
+        # Ensure database session is closed
+        if 'db' in locals():
+            db.close()
 
 
 @router.get("/detect/stats/{file}")
 async def get_detection_stats(
     file: str,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -193,6 +213,12 @@ async def get_detection_stats(
         Statistics about detections for the file
     """
     try:
+        # Lazy import to avoid circular dependencies
+        from backend.app.db import SessionLocal
+        
+        # Get database session
+        db = SessionLocal()
+        
         # Get all count items for the file
         count_items = db.query(CountItemModel).filter(
             CountItemModel.file == file
@@ -231,3 +257,7 @@ async def get_detection_stats(
             status_code=500,
             detail=f"Error retrieving detection stats: {str(e)}"
         )
+    finally:
+        # Ensure database session is closed
+        if 'db' in locals():
+            db.close()

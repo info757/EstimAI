@@ -1,12 +1,15 @@
 // frontend/src/pages/UploadPage.tsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { post } from '../api/client'
+import { ingestFiles } from '../api/client'
+import DebugCandidatesPanel from '../components/DebugCandidatesPanel'
 
 export default function UploadPage() {
   const [pid, setPid] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
   const [busy, setBusy] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
+  const [debugFileRef, setDebugFileRef] = useState<string | null>(null)
   const nav = useNavigate()
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -14,13 +17,12 @@ export default function UploadPage() {
     if (!files || !pid) return
     setBusy(true)
     try {
-      const fd = new FormData()
-      // Many FastAPI handlers use: files: List[UploadFile]
-      Array.from(files).forEach(f => fd.append('files', f))
-      // Some use: file: UploadFile (singular) — add first file as fallback
-      if (files.length > 0) fd.append('file', files[0])
-
-      await post<void>(`/projects/${encodeURIComponent(pid)}/ingest`, fd)
+      // Use the legacy ingest endpoint to properly save files and create indices
+      const fileArray = Array.from(files)
+      const result = await ingestFiles(pid, fileArray)
+      console.log('Ingest result:', result)
+      
+      // Navigate to project page
       nav(`/projects/${encodeURIComponent(pid)}`)
     } catch (err) {
       alert(String(err))
@@ -29,9 +31,36 @@ export default function UploadPage() {
     }
   }
 
+  const handleDebugToggle = () => {
+    if (!showDebug && files && files.length > 0) {
+      // For local file, we can't use file path directly
+      // User needs to provide an absolute path or upload first
+      const filePath = prompt('Enter absolute path to PDF for debug (e.g., /Users/.../file.pdf):')
+      if (filePath) {
+        setDebugFileRef(filePath)
+        setShowDebug(true)
+      }
+    } else {
+      setShowDebug(!showDebug)
+    }
+  }
+
   return (
     <div className="grid gap-6">
-      <div className="text-xl font-semibold">Upload PDFs</div>
+      <div className="flex justify-between items-center">
+        <div className="text-xl font-semibold">Upload PDFs</div>
+        
+        {/* Debug toggle */}
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showDebug}
+            onChange={handleDebugToggle}
+            className="w-4 h-4"
+          />
+          <span className="text-gray-700">🔍 Debug: Show raw candidates</span>
+        </label>
+      </div>
 
       <form onSubmit={onSubmit} className="grid gap-4 rounded-2xl p-4 shadow bg-white">
         <label className="grid gap-1">
@@ -56,8 +85,17 @@ export default function UploadPage() {
           {busy ? 'Uploading…' : 'Ingest & Continue'}
         </button>
       </form>
+
+      {/* Debug panel */}
+      {showDebug && (
+        <DebugCandidatesPanel
+          fileRef={debugFileRef}
+          onClose={() => {
+            setShowDebug(false)
+            setDebugFileRef(null)
+          }}
+        />
+      )}
     </div>
   )
 }
-
-

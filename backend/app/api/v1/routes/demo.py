@@ -10,7 +10,7 @@ import logging
 
 from backend.app.deps import get_current_user
 from backend.app.core.demo_config import get_demo_manager, is_demo_mode
-from backend.app.middleware.security import get_error_handler
+# Removed get_error_handler import - using standard FastAPI error handling
 
 router = APIRouter(prefix="/v1/demo", tags=["demo"])
 logger = logging.getLogger(__name__)
@@ -33,11 +33,9 @@ async def get_demo_banner(
         
     except Exception as e:
         logger.error(f"Error getting demo banner info: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "DEMO_INFO_ERROR",
-            "Failed to get demo mode information",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get demo mode information"
         )
 
 
@@ -63,11 +61,9 @@ async def get_sample_files(
         
     except Exception as e:
         logger.error(f"Error getting sample files: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "SAMPLE_FILES_ERROR",
-            "Failed to get sample files",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get sample files"
         )
 
 
@@ -105,11 +101,9 @@ async def download_sample_file(
         raise
     except Exception as e:
         logger.error(f"Error downloading sample file {filename}: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "DOWNLOAD_ERROR",
-            f"Failed to download sample file: {filename}",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to download sample file: {filename}"
         )
 
 
@@ -134,11 +128,9 @@ async def get_demo_limits(
         
     except Exception as e:
         logger.error(f"Error getting demo limits: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "LIMITS_ERROR",
-            "Failed to get demo limits",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get demo limits"
         )
 
 
@@ -180,11 +172,9 @@ async def register_demo_session(
         raise
     except Exception as e:
         logger.error(f"Error registering demo session: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "SESSION_REGISTRATION_ERROR",
-            "Failed to register demo session",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to register demo session"
         )
 
 
@@ -230,11 +220,9 @@ async def get_demo_session_status(
         raise
     except Exception as e:
         logger.error(f"Error getting demo session status: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "SESSION_STATUS_ERROR",
-            f"Failed to get demo session status: {session_id}",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get demo session status: {session_id}"
         )
 
 
@@ -283,11 +271,9 @@ async def record_demo_request(
         raise
     except Exception as e:
         logger.error(f"Error recording demo request: {e}")
-        error_handler = get_error_handler()
-        return error_handler.create_error_response(
-            "REQUEST_RECORDING_ERROR",
-            f"Failed to record demo request: {session_id}",
-            500
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to record demo request: {session_id}"
         )
 
 

@@ -172,6 +172,24 @@ export async function ingestFiles(pid: string, files: File[]): Promise<IngestRes
   return res.json(); // { ok, files_count, index_ids? }
 }
 
+// New v1 agent API method
+export async function runTakeoff(file: File, sessionId = "demo", maxPages?: number) {
+  const form = new FormData();
+  form.append("session_id", sessionId ?? "demo");
+  form.append("file", file);
+  if (maxPages != null) form.append("max_pages", String(maxPages));
+
+  const res = await fetch(`/api/v1/agent/takeoff`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`agent/takeoff failed ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+
 // Async ingest API Methods for PR 17
 export async function ingestAsync(pid: string, files: File[]): Promise<{ job_id: string }> {
   const form = new FormData();

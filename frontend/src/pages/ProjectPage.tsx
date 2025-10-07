@@ -8,6 +8,7 @@ import {
 } from '../api/client'
 import { UploadPanel } from '../components/UploadPanel'
 import { IngestSources } from '../components/IngestSources'
+import { VerificationPanel } from '../components/VerificationPanel'
 import type { JobResponse } from '../types/api'
 import Toast from '../components/Toast'
 import { useArtifacts } from '../hooks/useArtifacts'
@@ -203,6 +204,9 @@ export default function ProjectPage() {
 
       {/* Ingest Sources Section */}
       <IngestSources pid={pid} />
+
+      {/* Verification Panel */}
+      {pid && <VerificationPanel sessionId={`project-${pid}`} />}
 
       <div className="grid gap-3">
         <div className="text-lg font-semibold">Artifacts</div>

@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "estimai"
+version = "1.0.0"
+description = "EstimAI - Construction Takeoff Platform"
+authors = [
+    {name = "EstimAI Team", email = "team@estimai.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.25.0",
+    "python-multipart>=0.0.6",
+    "reportlab>=4.0.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.7.0",
+    "ruff>=0.1.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["backend.app"]
+strict = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+plugins = []
+
+# Mypy configuration for strict type checking
+[[tool.mypy.overrides]]
+module = [
+    "backend.app.services.ingest.pdfnet_runtime",
+    "backend.app.services.detectors.*",
+    "backend.app.services.earthwork_surface.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "W", "N", "D", "S", "T", "Q", "RUF"]
+ignore = [
+    "E501",  # line too long, handled by black
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D107",  # Missing docstring in __init__
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/app/agent/takeoff_impl.py" = ["D100", "D101", "D102", "D103"]
+"backend/tests/*.py" = ["D100", "D101", "D102", "D103", "S101", "S106"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["backend/tests"]
+markers = [
+    "e2e: mark as end-to-end test",
+    "slow: mark as slow test",
+    "integration: mark as integration test",
+]
+
+[tool.coverage.run]
+source = ["backend/app"]
+omit = [
+    "backend/app/tests/*",
+    "backend/app/__pycache__/*",
+    "backend/app/*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

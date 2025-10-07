@@ -1,11 +1,10 @@
 # backend/app/core/paths.py
 from pathlib import Path
-from .config import get_settings
+from .config import settings
 
 
 def artifacts_root() -> Path:
     """Get the root artifacts directory."""
-    settings = get_settings()
     return Path(settings.ARTIFACT_DIR)
 
 

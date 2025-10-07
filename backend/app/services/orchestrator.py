@@ -188,16 +188,117 @@ async def ingest(pid: str, file: UploadFile):
         "status": "saved",
     }
 
+def _get_latest_pdf_for_project(pid: str) -> str | None:
+    """
+    Get the most recent PDF file path from the project's ingest manifest.
+    Returns absolute path to the PDF or None if no PDF found.
+    """
+    import json
+    from pathlib import Path
+    
+    artifact_dir = Path(os.getenv("ARTIFACT_DIR", "backend/artifacts"))
+    manifest_path = artifact_dir / pid / "ingest" / "ingest_manifest.json"
+    
+    if not manifest_path.exists():
+        return None
+    
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        items = manifest.get("items", [])
+        
+        # Filter for PDF files with status "indexed"
+        pdf_items = [
+            item for item in items
+            if item.get("filename", "").lower().endswith(".pdf")
+            and item.get("status") == "indexed"
+            and item.get("raw_path")
+        ]
+        
+        if not pdf_items:
+            return None
+        
+        # Sort by indexed_at timestamp and get the latest
+        pdf_items.sort(key=lambda x: x.get("indexed_at", ""), reverse=True)
+        latest = pdf_items[0]
+        
+        # Construct absolute path
+        raw_path = artifact_dir / pid / "ingest" / latest["raw_path"]
+        return str(raw_path) if raw_path.exists() else None
+        
+    except Exception as e:
+        logger.warning(f"Failed to read ingest manifest for {pid}: {e}")
+        return None
+
+
 async def run_takeoff(pid: str) -> TakeoffOutput:
+    """
+    Run takeoff using the working Apryse+LLM agent.
+    Delegates to the proven v1 agent that processes PDFs with depth calculations.
+    """
     start_time = time.time()
     try:
-        result = await takeoff_agent.run(pid)
+        # Get the latest PDF from the ingest manifest
+        file_ref = _get_latest_pdf_for_project(pid)
+        
+        if not file_ref:
+            logger.error(f"No PDF found for project {pid}")
+            raise ValueError(f"No PDF file found for project {pid}. Please upload a PDF first.")
+        
+        logger.info(f"Running takeoff on {file_ref} for project {pid}")
+        
+        # Use the working v1 agent
+        from backend.app.agent.types import TakeoffRequest, TakeoffOptions
+        from backend.app.agent.takeoff_impl import DefaultTakeoffAgent
+        
+        agent = DefaultTakeoffAgent()
+        req = TakeoffRequest(
+            session_id=f"project-{pid}",
+            file_ref=file_ref,
+            options=TakeoffOptions(dry_run=False, max_pages=None),
+        )
+        
+        # Run the agent and get the response
+        resp = agent.run(req)
+        
+        # Check if agent failed (no proposed_review or has error)
+        if not resp.proposed_review or resp.error:
+            error_msg = resp.error or "Agent did not produce a valid proposal"
+            logger.error(f"Agent failed for {pid}: {error_msg}")
+            raise ValueError(f"Takeoff agent failed: {error_msg}")
+        
+        # Convert agent response to TakeoffOutput format
+        # The agent returns networks with pipes, we need to convert to takeoff items
+        networks = resp.proposed_review.payload.get("networks", {})
+        items = []
+        
+        for network_name, network_data in networks.items():
+            pipes = network_data.get("pipes", [])
+            for pipe in pipes:
+                # Create a takeoff item for each pipe
+                item = {
+                    "description": f"{network_name.title()} - {pipe.get('mat', 'Unknown')} {pipe.get('dia_in', 0)}\" pipe",
+                    "qty": pipe.get("length_ft", 0),
+                    "unit": "LF",
+                    "confidence": 0.8,
+                    "source": "vision_llm",
+                    "metadata": {
+                        "network": network_name,
+                        "material": pipe.get("mat"),
+                        "diameter_in": pipe.get("dia_in"),
+                        "avg_depth_ft": pipe.get("avg_depth_ft"),
+                        "trench_volume_cy": pipe.get("extra", {}).get("trench_volume_cy"),
+                    }
+                }
+                items.append(item)
+        
+        result = TakeoffOutput(project_id=pid, items=items, notes=f"Processed {len(items)} pipe segments")
+        
+        # Write artifact
         await _write_artifact(pid, "takeoff", result.model_dump())
         
         # Apply overrides if they exist
         if hasattr(result, 'items') and result.items:
             merged_items = merge_stage_with_overrides(pid, "takeoff", result.items)
-            # Update result with merged items
             result.items = merged_items
         
         duration_ms = (time.time() - start_time) * 1000

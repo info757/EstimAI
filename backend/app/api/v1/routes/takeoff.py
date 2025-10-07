@@ -101,10 +101,10 @@ async def takeoff_pdf(file: UploadFile = File(...)):
             from backend.app.services.detectors.sanitary import detect_sanitary_network
             from backend.app.services.detectors.water import detect_water_network
             
-            # Detect networks
-            storm_result = detect_storm_network(all_vectors, all_texts)
-            sanitary_result = detect_sanitary_network(all_vectors, all_texts)
-            water_result = detect_water_network(all_vectors, all_texts)
+            # Detect networks - pass pdf_path for real Apryse+LLM detection
+            storm_result = detect_storm_network(all_vectors, all_texts, pdf_path=tmp_file_path)
+            sanitary_result = detect_sanitary_network(all_vectors, all_texts, pdf_path=tmp_file_path)
+            water_result = detect_water_network(all_vectors, all_texts, pdf_path=tmp_file_path)
             
             # Step 6: Calculate sitework quantities
             from backend.app.services.detectors.sitework import (

@@ -50,12 +50,16 @@ class Settings(BaseSettings):
     VISION_MODEL: str = "gpt-4o-mini"
     OPENAI_API_KEY: Optional[str] = None
     
+    # Deterministic testing
+    ESTIMAI_SEED: Optional[int] = None  # Set to 42 for reproducible results
+    
     # Image processing settings
     TILE_PX: int = 1024
     TILE_OVERLAP_PX: int = 128
     
     # --- fields your .env is providing (add these) ---
     artifact_dir: str = "backend/artifacts"
+    ARTIFACT_DIR: str = "backend/artifacts"  # Uppercase alias for legacy code
 
     # Accept a comma-separated string or a JSON array
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:5174"]

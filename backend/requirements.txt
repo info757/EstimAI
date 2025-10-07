@@ -1,20 +1,35 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-pydantic-settings==2.0.3
-python-multipart==0.0.6
-pillow==10.1.0
-pymupdf==1.23.8
-opencv-python-headless>=4.10
-pandas==2.1.3
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-numpy==1.24.3
-jsonschema==4.19.2
-httpx==0.25.2
-shapely==2.0.2
-weasyprint==60.2
-jinja2==3.1.2
-alembic==1.12.1
-slowapi==0.1.9
-redis==5.0.1
+# Core FastAPI dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# HTTP client
+httpx>=0.25.0
+
+# PDF processing
+PyMuPDF>=1.23.0
+reportlab>=4.0.0
+
+# Image processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Scientific computing
+numpy>=1.24.0
+shapely>=2.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Linting and type checking
+ruff>=0.1.0
+mypy>=1.6.0
+
+# Optional: Apryse PDFNet (if available)
+# pdftron>=10.0.0

@@ -46,13 +46,23 @@ async def llm_call_json(*, prompt: str, context: Dict[str, Any], schema: Dict[st
     
     for attempt in range(max_retries + 1):
         try:
+            # Get seed from settings for deterministic results
+            from backend.app.core.config import settings
+            
+            # Build API call parameters
+            call_params = {
+                "model": "gpt-4o-mini",
+                "messages": [system_message, user_message],
+                "response_format": {"type": "json_object"},
+                "temperature": 0
+            }
+            
+            # Add seed for deterministic results if configured
+            if settings.ESTIMAI_SEED is not None:
+                call_params["seed"] = settings.ESTIMAI_SEED
+            
             # Make API call
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[system_message, user_message],
-                response_format={"type": "json_object"},
-                temperature=0
-            )
+            response = client.chat.completions.create(**call_params)
             
             # Extract content from response
             content = response.choices[0].message.content
