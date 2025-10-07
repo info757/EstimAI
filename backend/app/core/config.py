@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Deterministic testing
     ESTIMAI_SEED: Optional[int] = None  # Set to 42 for reproducible results
     
+    # Text extraction backend
+    ESTIMAI_TEXT_BACKEND: Literal["pdfnet", "pymupdf"] = "pymupdf"
+    
     # Image processing settings
     TILE_PX: int = 1024
     TILE_OVERLAP_PX: int = 128
@@ -107,6 +110,15 @@ class Settings(BaseSettings):
         self.get_files_dir().mkdir(parents=True, exist_ok=True)
         self.get_reports_dir().mkdir(parents=True, exist_ok=True)
         self.get_templates_dir().mkdir(parents=True, exist_ok=True)
+    
+    def get_text_backend(self) -> str:
+        """
+        Get the configured text extraction backend.
+        
+        Returns:
+            "pdfnet" or "pymupdf"
+        """
+        return self.ESTIMAI_TEXT_BACKEND
 
 
 # Singleton settings instance

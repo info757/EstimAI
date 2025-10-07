@@ -103,27 +103,27 @@ async def debug_extract(
                     logger.warning(f"Scale extraction failed on page {page_num}: {e}")
                     page_data["scale"] = {"error": str(e)}
                 
-                # Extract text and legend
+                # Extract text using unified API and get stats
                 try:
-                    text_annos, full_page_text = extractor.extract_text_annotations(page_num=page_num)
+                    text_runs = extractor.build_text_index(page_num=page_num)
+                    text_stats = extractor.get_text_stats(page_num=page_num)
+                    text_index = extractor.get_text_index(page_num=page_num)
                     
-                    # Parse legend
+                    # Parse legend from full text
+                    full_page_text = " ".join(run.text for run in text_runs)
                     legend_tokens = parse_legend_from_text(full_page_text)
                     page_data["legend_tokens"] = legend_tokens
                     
-                    # Sample text annotations (first 10)
-                    for text in text_annos[:10]:
-                        text_x = text.get("x", 0) if isinstance(text, dict) else getattr(text, 'x', 0)
-                        text_y = text.get("y", 0) if isinstance(text, dict) else getattr(text, 'y', 0)
-                        text_str = text.get("text", "") if isinstance(text, dict) else getattr(text, 'text', "")
-                        
+                    # Sample text runs (first 10)
+                    for run in text_runs[:10]:
                         page_data["text_annotations"].append({
-                            "text": text_str[:60],  # Truncate long text
-                            "x": round(text_x, 2),
-                            "y": round(text_y, 2)
+                            "text": run.text[:60],  # Truncate long text
+                            "x": round(run.x, 2),
+                            "y": round(run.y, 2)
                         })
                     
-                    page_data["text_annotations_total"] = len(text_annos)
+                    page_data["text_annotations_total"] = text_stats['runs_count']
+                    page_data["text_chars_total"] = text_stats['chars_total']
                     page_data["full_text_length"] = len(full_page_text)
                     
                 except Exception as e:
@@ -144,39 +144,25 @@ async def debug_extract(
                     polylines = extractor.extract_layer_lines(all_layer_hints, page_num=page_num)
                     logger.info(f"Page {page_num}: extracted {len(polylines)} polylines")
                     
-                    # Helper to find nearby text
-                    def _find_nearby_text(polyline, all_texts, search_radius_ft=10.0):
-                        bbox = polyline.bbox
-                        expanded_bbox = (
-                            bbox[0] - search_radius_ft,
-                            bbox[1] - search_radius_ft,
-                            bbox[2] + search_radius_ft,
-                            bbox[3] + search_radius_ft
-                        )
-                        
-                        nearby = []
-                        for text in all_texts:
-                            text_x = text.get("x", 0) if isinstance(text, dict) else getattr(text, 'x', 0)
-                            text_y = text.get("y", 0) if isinstance(text, dict) else getattr(text, 'y', 0)
-                            
-                            if (expanded_bbox[0] <= text_x <= expanded_bbox[2] and
-                                expanded_bbox[1] <= text_y <= expanded_bbox[3]):
-                                text_str = text.get("text", "") if isinstance(text, dict) else getattr(text, 'text', "")
-                                if text_str:
-                                    nearby.append(text_str)
-                        
-                        return nearby[:5]  # Return first 5
-                    
-                    # Process polylines
+                    # Process polylines with spatial index
                     for i, polyline in enumerate(polylines[:max_polylines]):
-                        nearby_text = _find_nearby_text(polyline, text_annos) if text_annos else []
+                        # Use spatial index for nearby text (adaptive expansion)
+                        nearby_text = []
+                        if text_index:
+                            nearby_text = text_index.query_expand(
+                                polyline.bbox,
+                                expand_ft=40.0,
+                                limit=20,
+                                adaptive=True
+                            )
                         
                         polyline_data = {
                             "id": polyline.id,
                             "length_ft": round(polyline.length_ft, 2),
                             "bbox": [round(x, 2) for x in polyline.bbox],
                             "layer": polyline.layer or "None",
-                            "nearby_text": nearby_text,
+                            "top_nearby": nearby_text[:2],  # Top 2 nearby strings
+                            "nearby_text": nearby_text[:5],  # First 5 for detailed view
                             "legend_context": legend_tokens[:3]  # Show legend for context
                         }
                         

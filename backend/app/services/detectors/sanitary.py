@@ -70,14 +70,14 @@ def _demo_trace_edges(nodes: List[Dict]) -> List[Pipe]:
     return pipes
 
 
-def _find_nearby_text(polyline, all_texts: List[Dict], search_radius_ft: float = 10.0) -> List[str]:
+def _find_nearby_text(polyline, text_runs: List, search_radius_ft: float = 40.0) -> List[str]:
     """
-    Find text annotations near a polyline.
+    Find text runs near a polyline using simple bbox expansion.
     
     Args:
         polyline: Polyline object with bbox in world feet
-        all_texts: List of TextAnno objects with coordinates in world feet
-        search_radius_ft: Search radius in feet (default 10.0)
+        text_runs: List of TextRun objects with coordinates in world feet
+        search_radius_ft: Search radius in feet (default 40.0)
     """
     bbox = polyline.bbox
     expanded_bbox = (
@@ -88,15 +88,13 @@ def _find_nearby_text(polyline, all_texts: List[Dict], search_radius_ft: float =
     )
     
     nearby = []
-    for text in all_texts:
-        text_x = text.get("x", 0) if isinstance(text, dict) else text.x
-        text_y = text.get("y", 0) if isinstance(text, dict) else text.y
-        
-        if (expanded_bbox[0] <= text_x <= expanded_bbox[2] and
-            expanded_bbox[1] <= text_y <= expanded_bbox[3]):
-            text_str = text.get("text", "") if isinstance(text, dict) else text.text
-            if text_str:
-                nearby.append(text_str)
+    for run in text_runs:
+        if (expanded_bbox[0] <= run.x <= expanded_bbox[2] and
+            expanded_bbox[1] <= run.y <= expanded_bbox[3]):
+            if run.text and run.text.strip():
+                nearby.append(run.text)
+                if len(nearby) >= 3:
+                    break
     
     return nearby
 
@@ -146,17 +144,30 @@ def detect_sanitary_network(vectors: List[Dict], texts: List[Dict], pdf_path: st
         polylines = extractor.extract_layer_lines(layer_hints, page_num=0)
         logger.info(f"Extracted {len(polylines)} candidate polylines from sanitary layers")
         
-        text_annos, full_page_text = extractor.extract_text_annotations(page_num=0)
+        # Extract text using unified API and build spatial index
+        text_runs = extractor.build_text_index(page_num=0)
+        text_stats = extractor.get_text_stats(page_num=0)
+        text_index = extractor.get_text_index(page_num=0)
+        logger.info(f"📝 Text extraction: {text_stats['runs_count']} runs, {text_stats['chars_total']} chars")
         
-        # Parse legend from page text
+        # Parse legend from full page text
         from backend.app.services.extract.legend_parser import parse_legend_from_text
+        full_page_text = " ".join(run.text for run in text_runs)
         legend_tokens = parse_legend_from_text(full_page_text)
         logger.info(f"📋 Sanitary legend_tokens: {legend_tokens[:5]}")
         
         # Build patches
         patches = []
         for polyline in polylines:
-            nearby_text = _find_nearby_text(polyline, text_annos)
+            # Use spatial index for efficient nearby text queries
+            nearby_text = []
+            if text_index:
+                nearby_text = text_index.query_expand(
+                    polyline.bbox,
+                    expand_ft=40.0,
+                    limit=20,
+                    adaptive=True
+                )
             
             # Add legend tokens for context
             enriched_nearby = nearby_text.copy() if nearby_text else []

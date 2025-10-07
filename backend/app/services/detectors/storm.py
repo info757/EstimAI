@@ -70,17 +70,22 @@ def _demo_trace_edges(nodes: List[Dict]) -> List[Pipe]:
     return pipes
 
 
-def _find_nearby_text(polyline, all_texts: List[Dict], search_radius_ft: float = 10.0) -> List[str]:
+def _find_nearby_text(polyline, text_runs: List, search_radius_ft: float = 40.0) -> List[str]:
     """
-    Find text annotations near a polyline.
+    Find text runs near a polyline using simple bbox expansion.
     
     Args:
         polyline: Polyline object with bbox in world feet
-        all_texts: List of TextAnno objects with coordinates in world feet
-        search_radius_ft: Search radius in feet (default 10.0)
+        text_runs: List of TextRun objects with coordinates in world feet
+        search_radius_ft: Search radius in feet (default 40.0 for wider search)
         
     Returns:
-        List of text strings near the polyline
+        List of text strings near the polyline (up to first 3)
+        
+    Notes:
+        - Uses simple bbox expansion (±40 ft) without spatial index
+        - Returns first 3 matches to avoid overwhelming the LLM
+        - Larger radius to compensate for potential coordinate issues
     """
     bbox = polyline.bbox
     expanded_bbox = (
@@ -91,16 +96,15 @@ def _find_nearby_text(polyline, all_texts: List[Dict], search_radius_ft: float =
     )
     
     nearby = []
-    for text in all_texts:
-        text_x = text.get("x", 0) if isinstance(text, dict) else text.x
-        text_y = text.get("y", 0) if isinstance(text, dict) else text.y
-        
-        # Check if text is within expanded bbox
-        if (expanded_bbox[0] <= text_x <= expanded_bbox[2] and
-            expanded_bbox[1] <= text_y <= expanded_bbox[3]):
-            text_str = text.get("text", "") if isinstance(text, dict) else text.text
-            if text_str:
-                nearby.append(text_str)
+    for run in text_runs:
+        # Check if text center is within expanded bbox
+        if (expanded_bbox[0] <= run.x <= expanded_bbox[2] and
+            expanded_bbox[1] <= run.y <= expanded_bbox[3]):
+            if run.text and run.text.strip():
+                nearby.append(run.text)
+                # Limit to first 3 to avoid overwhelming
+                if len(nearby) >= 3:
+                    break
     
     return nearby
 
@@ -159,21 +163,21 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
         polylines = extractor.extract_layer_lines(layer_hints, page_num=0)
         logger.info(f"Extracted {len(polylines)} candidate polylines from storm layers")
         
-        # Step 3: Extract text annotations and page legend
-        text_annos, full_page_text = extractor.extract_text_annotations(page_num=0)
-        logger.info(f"Extracted {len(text_annos)} text annotations")
+        # Step 3: Extract text using unified API and build spatial index
+        text_runs = extractor.build_text_index(page_num=0)
+        text_stats = extractor.get_text_stats(page_num=0)
+        text_index = extractor.get_text_index(page_num=0)
+        logger.info(f"📝 Text extraction: {text_stats['runs_count']} runs, {text_stats['chars_total']} chars")
         
-        # Parse legend/notes from page text
+        # Parse legend from full page text
         from backend.app.services.extract.legend_parser import parse_legend_from_text
+        full_page_text = " ".join(run.text for run in text_runs)
         legend_tokens = parse_legend_from_text(full_page_text)
-        logger.info(f"📋 Parsed legend_tokens: {legend_tokens[:5]}")  # Log top 5
+        logger.info(f"📋 Parsed legend_tokens: {legend_tokens[:5]}")
         
-        # Debug: Log first few text annotations
-        for i, text in enumerate(text_annos[:3]):
-            text_x = text.get("x", 0) if isinstance(text, dict) else getattr(text, 'x', 0)
-            text_y = text.get("y", 0) if isinstance(text, dict) else getattr(text, 'y', 0)
-            text_str = text.get("text", "") if isinstance(text, dict) else getattr(text, 'text', "")
-            logger.info(f"  Text[{i}]: '{text_str[:30]}' at ({text_x:.1f}, {text_y:.1f})")
+        # Debug: Log first few text runs
+        for i, run in enumerate(text_runs[:3]):
+            logger.info(f"  Text[{i}]: '{run.text[:30]}' at ({run.x:.1f}, {run.y:.1f}) ft")
         
         # Step 4: Build patches for classifier
         patches = []
@@ -181,8 +185,15 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
             # Debug: Log polyline bbox
             logger.info(f"  Polyline {polyline.id}: bbox={polyline.bbox}, layer='{polyline.layer}'")
             
-            # Find nearby text
-            nearby_text = _find_nearby_text(polyline, text_annos)
+            # Find nearby text using spatial index (adaptive expansion)
+            nearby_text = []
+            if text_index:
+                nearby_text = text_index.query_expand(
+                    polyline.bbox,
+                    expand_ft=40.0,
+                    limit=20,
+                    adaptive=True
+                )
             logger.info(f"    Found {len(nearby_text)} nearby texts: {nearby_text[:3] if nearby_text else '[]'}")
             
             # Add legend tokens to nearby_text to provide context
@@ -196,7 +207,7 @@ def detect_storm_network(vectors: List[Dict], texts: List[Dict], pdf_path: str |
                 "bbox": polyline.bbox,
                 "layer": polyline.layer,
                 "color": polyline.stride,
-                "nearby_text": enriched_nearby  # Now includes legend tokens
+                "nearby_text": enriched_nearby  # Now includes indexed nearby text + legend
             }
             patches.append(patch)
         

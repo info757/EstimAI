@@ -132,6 +132,20 @@ def create_app() -> FastAPI:
         except Exception as e:
             print(f"⚠️ Database migrations failed: {e}")
 
+        # Log text extraction backend configuration
+        try:
+            from backend.app.core.config import settings
+            import logging
+            logger = logging.getLogger(__name__)
+            text_backend = settings.get_text_backend()
+            logger.info(f"📝 TextBackend={text_backend}")
+            print(f"📝 TextBackend={text_backend}")  # Also print for visibility
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"⚠️ Failed to log text backend: {e}")
+            print(f"⚠️ Failed to log text backend: {e}")
+        
         # Initialize Apryse PDFNet if enabled
         try:
             from backend.app.core.config import settings

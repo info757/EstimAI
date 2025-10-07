@@ -137,6 +137,8 @@ class VectorExtractor:
         
         self._doc = None
         self._scale_cache: Dict[int, ScaleInfo] = {}
+        self._text_stats_cache: Dict[int, Dict[str, Any]] = {}  # Per-page text statistics
+        self._text_index_cache: Dict[int, Any] = {}  # Per-page spatial index
         
         logger.info(f"VectorExtractor initialized for: {self.pdf_path.name}")
     
@@ -404,6 +406,136 @@ class VectorExtractor:
         except Exception as e:
             logger.error(f"Text extraction failed on page {page_num}: {e}")
             raise RuntimeError(f"Failed to extract text: {e}")
+    
+    def build_text_index(self, page_num: int = 0) -> List[Any]:
+        """
+        Build per-page text index using the unified text extraction API.
+        
+        Args:
+            page_num: Page index (0-based)
+            
+        Returns:
+            List of TextRun objects with real coordinates in feet
+            
+        Notes:
+            - Uses ESTIMAI_TEXT_BACKEND to route to PyMuPDF or PDFNet
+            - Caches results and statistics per page
+            - Provides real text coordinates for spatial matching
+        """
+        # Check cache first
+        if page_num in self._text_stats_cache:
+            # Already built, return cached runs
+            return self._text_stats_cache[page_num].get('runs', [])
+        
+        doc = self._ensure_doc()
+        
+        try:
+            from backend.app.services.ingest.pdfnet_runtime import (
+                iter_pages,
+                get_scale_transform,
+            )
+            from backend.app.services.ingest.text_runtime import extract_text_runs_all
+            
+            # Get page
+            pages = list(iter_pages(doc))
+            if page_num >= len(pages):
+                logger.warning(f"Page {page_num} not found, using page 0")
+                page_num = 0
+            
+            page = pages[page_num]
+            
+            # Get scale transform (same as used for vectors)
+            feet_per_point, to_world_xy = get_scale_transform(doc, page)
+            
+            # Extract text using unified API
+            text_runs = extract_text_runs_all(str(self.pdf_path), page, page_num, to_world_xy)
+            
+            # Calculate statistics
+            total_chars = sum(len(run.text) for run in text_runs)
+            runs_count = len(text_runs)
+            
+            # Cache results
+            self._text_stats_cache[page_num] = {
+                'runs': text_runs,
+                'chars_total': total_chars,
+                'runs_count': runs_count,
+                'feet_per_point': feet_per_point
+            }
+            
+            logger.info(f"Built text index for page {page_num}: {runs_count} runs, {total_chars} chars")
+            return text_runs
+            
+        except Exception as e:
+            logger.error(f"Failed to build text index on page {page_num}: {e}")
+            # Cache empty result to avoid retrying
+            self._text_stats_cache[page_num] = {
+                'runs': [],
+                'chars_total': 0,
+                'runs_count': 0,
+                'error': str(e)
+            }
+            return []
+    
+    def get_text_stats(self, page_num: int = 0) -> Dict[str, Any]:
+        """
+        Get text extraction statistics for a page.
+        
+        Args:
+            page_num: Page index (0-based)
+            
+        Returns:
+            Dict with: chars_total, runs_count, and optional error
+            
+        Example:
+            >>> extractor = VectorExtractor("plan.pdf")
+            >>> stats = extractor.get_text_stats(0)
+            >>> print(f"Page has {stats['chars_total']} chars in {stats['runs_count']} runs")
+        """
+        # Build index if not cached
+        if page_num not in self._text_stats_cache:
+            self.build_text_index(page_num)
+        
+        stats = self._text_stats_cache.get(page_num, {})
+        return {
+            'chars_total': stats.get('chars_total', 0),
+            'runs_count': stats.get('runs_count', 0),
+            'error': stats.get('error')
+        }
+    
+    def get_text_index(self, page_num: int = 0):
+        """
+        Get spatial text index for a page.
+        
+        Args:
+            page_num: Page index (0-based)
+            
+        Returns:
+            TextIndex object for spatial queries, or None if text extraction failed
+            
+        Example:
+            >>> extractor = VectorExtractor("plan.pdf")
+            >>> index = extractor.get_text_index(0)
+            >>> nearby = index.query_expand(polyline_bbox, expand_ft=40, limit=20)
+        """
+        # Check if index is already cached
+        if page_num in self._text_index_cache:
+            return self._text_index_cache[page_num]
+        
+        # Build text index if needed
+        text_runs = self.build_text_index(page_num)
+        
+        if not text_runs:
+            logger.warning(f"No text runs available for page {page_num}, index will be empty")
+            self._text_index_cache[page_num] = None
+            return None
+        
+        # Create and cache spatial index
+        from backend.app.services.extract.spatial import TextIndex
+        index = TextIndex(text_runs)
+        self._text_index_cache[page_num] = index
+        
+        logger.debug(f"Created TextIndex for page {page_num} with {len(text_runs)} runs")
+        return index
     
     def _parse_text_value(self, text: str) -> Optional[str]:
         """

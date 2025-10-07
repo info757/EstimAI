@@ -9,6 +9,7 @@ import os
 import re
 from typing import Optional, Iterator, Any, Union, Tuple, Callable, List, Dict
 from pathlib import Path
+from .text_models import TextRun
 
 logger = logging.getLogger(__name__)
 
@@ -694,3 +695,89 @@ def _try_parse_scale_bar(page: Any) -> Tuple[Optional[str], Optional[float]]:
     except Exception as e:
         logger.warning(f"Scale bar parsing failed: {e}")
         return (None, None)
+
+
+def extract_text_runs_pdfnet(
+    page: Any,
+    to_world_xy: Callable[[float, float], Tuple[float, float]]
+) -> List[TextRun]:
+    """
+    Extract text runs from a PDF page using PDFNet TextExtractor.
+    
+    Args:
+        page: PDFNet page object
+        to_world_xy: Function to convert PDF points to world feet
+        
+    Returns:
+        List of TextRun objects with coordinates in feet
+        
+    Notes:
+        - Uses PDFNet's GetAsText() for now (simplified extraction)
+        - Returns line-level granularity with estimated positions
+        - More robust implementation would use ElementReader for precise bboxes
+        - Coordinates are in bottom-left origin (PDF standard)
+        
+    Example:
+        >>> doc = PDFDoc("plan.pdf")
+        >>> page = doc.GetPage(1)
+        >>> def to_world(x, y): return (x * 0.208, y * 0.208)
+        >>> runs = extract_text_runs_pdfnet(page, to_world)
+        >>> print(f"Extracted {len(runs)} text runs")
+    """
+    from PDFNetPython3.PDFNetPython import TextExtractor
+    
+    te = TextExtractor()
+    te.Begin(page)
+    
+    # Get all text as string
+    all_text = te.GetAsText()
+    
+    # Split into words (simplified - proper implementation would use ElementReader)
+    words = all_text.split()
+    
+    # Get page dimensions for estimating positions
+    page_bbox = page.GetBox(1)  # GetBox(1) = MediaBox
+    page_width = page_bbox.x2 - page_bbox.x1
+    page_height = page_bbox.y2 - page_bbox.y1
+    
+    runs = []
+    
+    # For now, create TextRuns with estimated positions
+    # This is better than the grid layout but still not perfect
+    # TODO: Use ElementReader API for precise word bboxes
+    for i, word in enumerate(words):
+        if not word.strip():
+            continue
+        
+        # Estimate position (grid layout based on word index)
+        # This is temporary until proper bbox extraction is implemented
+        words_per_row = max(8, int(page_width / 50))  # Estimate based on page width
+        col = i % words_per_row
+        row = i // words_per_row
+        
+        # Estimate bbox in PDF points
+        x0_pt = page_bbox.x1 + (col * page_width / words_per_row)
+        y0_pt = page_bbox.y2 - (row * 20)  # Start from top, go down
+        x1_pt = x0_pt + len(word) * 5  # Rough estimate based on character count
+        y1_pt = y0_pt - 10
+        
+        # Convert to world feet
+        x0, y0 = to_world_xy(x0_pt, y0_pt)
+        x1, y1 = to_world_xy(x1_pt, y1_pt)
+        
+        runs.append(TextRun(
+            text=word.strip(),
+            bbox=(
+                min(x0, x1),  # minx
+                min(y0, y1),  # miny
+                max(x0, x1),  # maxx
+                max(y0, y1)   # maxy
+            )
+        ))
+    
+    logger.info(f"Extracted {len(runs)} text runs using PDFNet (estimated positions)")
+    return runs
+
+
+# Alias for compatibility with unified API
+extract_text_runs_all_pdfnet = extract_text_runs_pdfnet
