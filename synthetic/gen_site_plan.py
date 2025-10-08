@@ -31,9 +31,61 @@ except ImportError:
 
 # ---------- scene synthesis ----------
 
-def gen_scene(seed=1):
+def _calc_polyline_length(polyline):
+    """Calculate total length of a polyline in feet."""
+    if not polyline or len(polyline) < 2:
+        return 0.0
+    
+    total = 0.0
+    for i in range(len(polyline) - 1):
+        x1, y1 = polyline[i]
+        x2, y2 = polyline[i + 1]
+        segment_len = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        total += segment_len
+    
+    return total
+
+def gen_scene(seed=1, complexity="medium"):
     random.seed(seed)
-    # simple 2x5 lots along a straight road
+    
+    if complexity == "simple":
+        return _gen_simple_linear(seed)
+    elif complexity == "complex":
+        return _gen_complex_subdivision(seed)
+    else:
+        return _gen_medium_site(seed)
+
+
+def _gen_simple_linear(seed):
+    """Generate a simple linear utility plan - good for accuracy testing."""
+    random.seed(seed)
+    
+    # Straight road
+    road = [(0,0),(600,0)]
+    
+    # No lots - just utilities
+    lots = []
+    
+    # Three parallel utilities with different characteristics
+    water = [(50,0),(550,0)]  # 500 ft
+    sewer = [(50,-15),(550,-15)]  # 500 ft, offset 15ft
+    storm = [(50,15),(550,15)]  # 500 ft, offset 15ft
+    
+    # Nodes along the lines
+    nodes = {
+        "hydrants":[(150,0),(350,0),(450,0)],
+        "manholes":[(100,-15),(300,-15),(500,-15)],
+        "inlets":[(200,15),(400,15)]
+    }
+    
+    return _finalize_scene(road, lots, water, sewer, storm, nodes, seed)
+
+
+def _gen_medium_site(seed):
+    """Generate medium complexity site - original design."""
+    random.seed(seed)
+    
+    # 2x5 lots along a straight road
     lots = []
     road = [(0,0),(500,0)]
     for i in range(10):
@@ -51,46 +103,138 @@ def gen_scene(seed=1):
         "manholes":[(150,-10),(350,-10)],
         "inlets":[(200,10),(400,10)]
     }
-
-    # sample elevations (invert-out) for manholes
-    invs = {"MH-1": 421.80, "MH-2": 421.10}
     
-    # Profile data for each utility (station, ground_elev, invert_elev)
-    # Ground elevation: ~430 ft, pipes buried 8-10 ft deep
-    # 2% slope = 0.02 ft/ft drop
+    return _finalize_scene(road, lots, water, sewer, storm, nodes, seed)
+
+
+def _gen_complex_subdivision(seed):
+    """Generate complex subdivision with branches and varying materials."""
+    random.seed(seed)
+    
+    # Curved road with cul-de-sac
+    road = [(0,0),(300,0),(400,20),(450,60),(450,120)]
+    
+    # 8 lots around cul-de-sac
+    lots = []
+    for i in range(8):
+        angle = i * 45  # degrees
+        r = 80
+        cx, cy = 450, 90  # cul-de-sac center
+        x0 = cx + r * math.cos(math.radians(angle))
+        y0 = cy + r * math.sin(math.radians(angle))
+        # Simple rectangular lots radiating out
+        lots.append([
+            (x0, y0),
+            (x0 + 40, y0),
+            (x0 + 40, y0 + 60),
+            (x0, y0 + 60),
+            (x0, y0)
+        ])
+    
+    # Utilities with branches
+    # Main trunk along road
+    water_main = [(20,0),(300,0),(400,20),(450,60)]
+    # Branch to cul-de-sac
+    water_branch = [(400,20),(450,90)]
+    water = water_main  # For now, just main trunk
+    
+    sewer_main = [(20,-10),(300,-10),(400,10),(450,50)]
+    sewer = sewer_main
+    
+    storm_main = [(20,10),(300,10),(400,30),(450,70)]
+    storm = storm_main
+    
+    nodes = {
+        "hydrants":[(100,5),(250,2),(400,25)],
+        "manholes":[(80,-10),(200,-10),(350,15),(450,55)],
+        "inlets":[(150,15),(300,15),(420,35)]
+    }
+    
+    return _finalize_scene(road, lots, water, sewer, storm, nodes, seed)
+
+
+def _finalize_scene(road, lots, water, sewer, storm, nodes, seed):
+    """Finalize scene with elevations and profiles."""
+    random.seed(seed)
+
+    # Calculate actual utility lengths from coordinates
+    water_len = _calc_polyline_length(water)
+    sewer_len = _calc_polyline_length(sewer)
+    storm_len = _calc_polyline_length(storm)
+    
+    # Generate realistic elevations based on seed
+    base_elev = 420.0 + (seed % 5) * 10  # Vary base elevation: 420-460
+    
+    # Vary depths by utility type (realistic ranges)
+    water_depth = 6.0 + random.uniform(0, 2)  # 6-8 ft (shallower)
+    sewer_depth = 8.0 + random.uniform(0, 3)  # 8-11 ft (medium)
+    storm_depth = 7.0 + random.uniform(0, 3)  # 7-10 ft (medium)
+    
+    # Vary slopes (realistic ranges)
+    water_slope = 0.5 + random.uniform(0, 0.5)  # 0.5-1.0% (gentle)
+    sewer_slope = 1.0 + random.uniform(0, 1.5)  # 1.0-2.5% (steeper)
+    storm_slope = 0.5 + random.uniform(0, 1.0)  # 0.5-1.5% (variable)
+    
+    # Vary materials by seed
+    materials = {
+        "water": ["DI", "PVC C900", "HDPE"][seed % 3],
+        "sewer": ["PVC SDR-35", "PVC SDR-26", "VCP"][seed % 3],
+        "storm": ["RCP", "HDPE", "PVC"][seed % 3]
+    }
+    
+    # Vary diameters
+    diameters = {
+        "water": [6, 8, 10, 12][seed % 4],
+        "sewer": [8, 10, 12][seed % 3],
+        "storm": [12, 15, 18][seed % 3]
+    }
+    
+    # Build profiles with realistic variation
+    ground_start = base_elev + 10.0
+    ground_end = ground_start - (water_len * 0.005)  # 0.5% ground slope
+    
+    # Sample elevations for manholes
+    invs = {}
+    mh_nodes = nodes.get("manholes", [])
+    for i, (x, y) in enumerate(mh_nodes, start=1):
+        # Calculate invert based on position along sewer line
+        progress = x / (sewer_len if sewer_len > 0 else 1)
+        inv = (ground_start - sewer_depth) - (progress * sewer_len * sewer_slope / 100)
+        invs[f"MH-{i}"] = round(inv, 2)
+    
     profiles = {
         "water": {
             "start_station": 0,
-            "end_station": 460,
-            "diameter_in": 8,
-            "material": "DI",
-            "ground_start": 430.0,
-            "ground_end": 428.0,  # Slight grade
-            "invert_start": 422.0,  # 8 ft deep at start
-            "invert_end": 412.8,   # 8 ft deep + 2% slope over 460ft = 9.2ft drop
-            "slope_pct": 2.0
+            "end_station": int(water_len),
+            "diameter_in": diameters["water"],
+            "material": materials["water"],
+            "ground_start": ground_start,
+            "ground_end": ground_end,
+            "invert_start": ground_start - water_depth,
+            "invert_end": ground_end - water_depth - (water_len * water_slope / 100),
+            "slope_pct": round(water_slope, 2)
         },
         "sewer": {
             "start_station": 0,
-            "end_station": 460,
-            "diameter_in": 8,
-            "material": "PVC",
-            "ground_start": 430.0,
-            "ground_end": 428.0,
-            "invert_start": 420.0,  # 10 ft deep at start
-            "invert_end": 410.8,   # 10 ft deep + 2% slope = 9.2ft drop
-            "slope_pct": 2.0
+            "end_station": int(sewer_len),
+            "diameter_in": diameters["sewer"],
+            "material": materials["sewer"],
+            "ground_start": ground_start,
+            "ground_end": ground_end,
+            "invert_start": ground_start - sewer_depth,
+            "invert_end": ground_end - sewer_depth - (sewer_len * sewer_slope / 100),
+            "slope_pct": round(sewer_slope, 2)
         },
         "storm": {
             "start_station": 0,
-            "end_station": 460,
-            "diameter_in": 12,
-            "material": "RCP",
-            "ground_start": 430.0,
-            "ground_end": 428.0,
-            "invert_start": 421.0,  # 9 ft deep at start
-            "invert_end": 411.8,   # 9 ft deep + 2% slope = 9.2ft drop
-            "slope_pct": 2.0
+            "end_station": int(storm_len),
+            "diameter_in": diameters["storm"],
+            "material": materials["storm"],
+            "ground_start": ground_start,
+            "ground_end": ground_end,
+            "invert_start": ground_start - storm_depth,
+            "invert_end": ground_end - storm_depth - (storm_len * storm_slope / 100),
+            "slope_pct": round(storm_slope, 2)
         }
     }
 
@@ -662,27 +806,38 @@ def save_pdf(scene, doc, out_pdf: Path):
 # ---------- CLI ----------
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--count", type=int, default=1, help="number of sheets to generate with incremental seeds")
-    ap.add_argument("--outdir", type=str, default="synthetic")
+    ap = argparse.ArgumentParser(description="Generate synthetic utility construction plans")
+    ap.add_argument("--seed", type=int, default=7, help="Random seed for generation")
+    ap.add_argument("--count", type=int, default=1, help="Number of sheets to generate")
+    ap.add_argument("--complexity", type=str, default="medium", 
+                    choices=["simple", "medium", "complex"],
+                    help="Complexity level: simple (linear), medium (subdivision), complex (curved)")
+    ap.add_argument("--outdir", type=str, default="synthetic", help="Output directory")
     args = ap.parse_args()
 
     outdir = Path(args.outdir); outdir.mkdir(parents=True, exist_ok=True)
 
     seed = args.seed
     for i in range(args.count):
-        scene = gen_scene(seed=seed)
-        stem = f"site_plan_s{seed:02d}"
+        scene = gen_scene(seed=seed, complexity=args.complexity)
+        
+        # Include complexity in filename
+        complexity_code = {"simple": "lin", "medium": "sub", "complex": "cplx"}[args.complexity]
+        stem = f"site_plan_{complexity_code}_s{seed:02d}"
         dxf_path = outdir / f"{stem}.dxf"
         pdf_path = outdir / f"{stem}.pdf"
-        gt_path  = outdir / f"ground_truth_s{seed:02d}.json"
+        gt_path  = outdir / f"ground_truth_{complexity_code}_s{seed:02d}.json"
 
         doc = build_dxf(scene, dxf_path)
         save_pdf(scene, doc, pdf_path)
         gt_path.write_text(json.dumps(scene, indent=2))
 
-        print(f"Wrote: {dxf_path}\n       {pdf_path}\n       {gt_path}")
+        print(f"[{args.complexity.upper()}] Wrote:")
+        print(f"  DXF:  {dxf_path}")
+        print(f"  PDF:  {pdf_path}")
+        print(f"  JSON: {gt_path}")
+        print(f"  Pipes: {len(scene['water'])} water, {len(scene['sewer'])} sewer, {len(scene['storm'])} storm")
+        print()
         seed += 1
 
 if __name__ == "__main__":

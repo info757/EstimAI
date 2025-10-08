@@ -258,7 +258,10 @@ async def extract_pipes_from_pdf_vision_multipage_async(
     
     # Convert all pages to images
     image_contents = []
-    for page_num in range(min(page_count, 5)):  # Limit to 5 pages max
+    max_pages = min(page_count, 10)  # Process up to 10 pages
+    logger.info(f"Converting {max_pages} pages to images...")
+    
+    for page_num in range(max_pages):
         image_base64 = await _pdf_page_to_base64(pdf_path, page_num)
         image_contents.append({
             "type": "image_url",
@@ -267,6 +270,7 @@ async def extract_pipes_from_pdf_vision_multipage_async(
                 "detail": "high"
             }
         })
+        logger.info(f"  Page {page_num + 1}/{max_pages} converted")
     
     system_prompt = """You are an expert civil engineer analyzing utility construction plans. 
 Your task is to identify ALL utility pipes and extract their complete information.
@@ -340,6 +344,10 @@ Return JSON with this structure:
             
             result = response.json()
             content = result["choices"][0]["message"]["content"]
+            
+            # Log raw response for debugging
+            logger.info(f"📝 Vision LLM raw response (first 500 chars): {content[:500]}")
+            
             parsed = json.loads(content)
             
             # Log what we got
@@ -351,6 +359,10 @@ Return JSON with this structure:
                 f"✅ Vision LLM (multipage) extracted: {storm_count} storm, "
                 f"{sanitary_count} sanitary, {water_count} water pipes"
             )
+            
+            # If 0 pipes, log the full response for debugging
+            if storm_count == 0 and sanitary_count == 0 and water_count == 0:
+                logger.warning(f"⚠️ Vision LLM returned 0 pipes. Full response: {content[:1000]}")
             
             return parsed
     
