@@ -31,9 +31,13 @@ def run_extract(file_ref: str, max_pages: Optional[int] = None) -> Any:
     Canonical extract entrypoint used by the agent.
     
     This function provides a stable interface that:
-    1. Detects utility networks using Apryse+LLM pipeline
+    1. Detects utility networks using VISION LLM (GPT-4o) or Apryse+LLM pipeline
     2. Optionally builds surface sampler for depth calculations
     3. Returns JSON-serializable data structure
+    
+    Feature flags:
+    - ESTIMAI_USE_VISION=1: Use pure GPT-4o vision (no Apryse)
+    - ESTIMAI_USE_VISION=0: Use Apryse vector extraction + LLM classification (default)
     
     Args:
         file_ref: Path to the PDF file to extract from
@@ -52,10 +56,26 @@ def run_extract(file_ref: str, max_pages: Optional[int] = None) -> Any:
     """
     import logging
     import enum
+    import os
     from pydantic import BaseModel
     
     logger = logging.getLogger(__name__)
     logger.info(f"Running extract pipeline on: {file_ref}")
+    
+    # Check if using vision-only mode
+    use_vision = os.getenv("ESTIMAI_USE_VISION", "0") == "1"
+    
+    if use_vision:
+        logger.info("🔍 Using GPT-4o VISION mode (bypassing Apryse)")
+        from .vision import detect_all_networks_vision
+        networks = detect_all_networks_vision(file_ref, page_num=0)
+        return {
+            "networks": networks,
+            "surface": None
+        }
+    
+    # Default: Use Apryse vector extraction + LLM classification
+    logger.info("🔍 Using Apryse + LLM classification mode")
     
     # Import network detection functions
     from .storm import detect_storm_network

@@ -289,55 +289,73 @@ class PipeClassifier:
         # Stable sort by ID
         candidates.sort(key=lambda c: c["id"])
         
+        # Collect ALL unique text from all patches (for legend reading)
+        all_text_set = set()
+        for candidate in candidates:
+            all_text_set.update(candidate.get("nearby_text", []))
+        page_text_all = sorted(list(all_text_set))  # Stable sort for determinism
+        
         # Build full context with metadata
         context = {
             "task": "classify_utility_pipes",
             "candidates": candidates,
+            "page_text": page_text_all,  # ALL text on page (includes legend!)
             "legend_ontology": None,  # Explicit null if not provided
             "scale_info": {
                 "feet_per_point": None,  # TODO: wire scale
                 "units": "feet"
             },
             "instructions": (
-                "For each candidate polyline, determine if it's a utility pipe "
-                "and extract its attributes (discipline, material, diameter). "
-                "Use layer names and nearby text annotations as primary evidence."
+                "Read the page_text to find the legend/notes that explain what symbols mean. "
+                "Then classify each candidate polyline using layer names, nearby text, and legend definitions."
             )
         }
         
         return context
     
     def _get_classification_prompt(self) -> str:
-        """Get the classification prompt template with anti-collapse guardrails."""
-        return """You are a construction plan analyzer specialized in utility pipe detection.
+        """Get the classification prompt template - LLM-first, no hardcoded assumptions."""
+        return """You are an expert at reading civil engineering utility plans. Your task is to classify polylines as utility pipes.
 
-Given polylines with context (layer, nearby text, length), classify each as:
-- Discipline: storm, sanitary, or water (or null if not a pipe)
-- Material: pvc, ductile_iron, concrete, hdpe, etc.
-- Diameter: in inches (extract from text like "12\\"" or "8 IN")
+TASK: For each polyline, determine:
+- Discipline: "storm" (storm drain), "sanitary" (sanitary sewer), or "water" (water main)
+- Material: pvc, ductile_iron, concrete, hdpe, copper, etc.
+- Diameter: in inches (from text like "12\\"", "8 IN", "6 INCH")
 - Confidence: 0.0 to 1.0 (how certain you are)
 
-Evidence Rules:
-1. Layer names provide strong hints:
-   - "STORM", "SD" → storm
-   - "SANITARY", "SAN", "SEWER" → sanitary  
-   - "WATER", "WM", "DOMESTIC" → water
+HOW TO CLASSIFY (use ALL available clues):
 
-2. Text annotations are definitive:
-   - "8\\" PVC" → dia_in=8, material=pvc
-   - "12 IN CONCRETE" → dia_in=12, material=concrete
-   - "6\\" DI" → dia_in=6, material=ductile_iron
+1. READ THE LEGEND/NOTES FIRST
+   - Every drawing explains its symbols differently
+   - Look for text like: "WATER MAIN (Blue) - WM, HYD, GV"
+   - Or: "SS = Sanitary Sewer", "Storm Drain - CB, DI, FES"
+   - The legend tells you what abbreviations, colors, or symbols mean
 
-3. Common materials by discipline:
-   - Storm: concrete, hdpe, pvc
-   - Sanitary: pvc, vitrified_clay, concrete
-   - Water: ductile_iron, pvc, copper
+2. MATCH POLYLINES USING ANY CLUES:
+   - Layer names (e.g., "C-UTIL-WATR", "STORM", "SANITARY SEWER")
+   - Nearby text labels (e.g., "12\\" PVC", "HYD", "SSMH", "DI", "INV OUT=421.80'")
+   - Legend definitions (if legend says "WM = Water Main", then "WM" labels indicate water)
+   - Common abbreviations: WM/HYD/GV=water, SS/SSMH/INV=sanitary, SD/CB/DI/FES=storm
 
-CRITICAL GUARDRAILS:
-- Classify each polyline INDEPENDENTLY. Do not adjust outputs to match an assumed global distribution.
-- If you cite at least one label or legend clue for a polyline, you MUST choose a type (storm/sanitary/water); only use null/unknown when there is truly no evidence.
-- Keep "reason" concise (≤25 words). Cite specific evidence (layer name, nearby text).
-- Include cited labels in "evidence_refs" array.
+3. BE FLEXIBLE AND ADAPTIVE:
+   - Every PDF uses different conventions
+   - Some use layers, some use colors, some use text labels
+   - Use WHATEVER clues are present in THIS specific drawing
+   - Don't require specific formats - adapt to what you see
+   - If coordinates don't align, use text context and legend as primary signals
+
+4. EXAMPLES OF REASONING:
+   - "Legend says 'WATER MAIN - WM, HYD', nearby text 'HYD' → water"
+   - "Layer name 'C-UTIL-SSWR', nearby 'SSMH-1 INV OUT=421.80' → sanitary"
+   - "Legend says 'Storm Drain - CB, DI', nearby 'DI' label → storm"
+   - "No legend, but layer 'STORM SEWER' → storm"
+
+CRITICAL RULES:
+- Classify INDEPENDENTLY - don't assume equal distribution of types
+- If you find ANY evidence (legend, layer, label), make a classification
+- Only use null when there is truly ZERO evidence
+- Keep "reason" concise (≤25 words) - cite the specific clue
+- Include cited text in "evidence_refs" array
 
 Return JSON object with this exact format:
 {
@@ -347,9 +365,9 @@ Return JSON object with this exact format:
       "discipline": "storm",
       "material": "pvc",
       "dia_in": 12.0,
-      "confidence": 0.9,
-      "reason": "Layer STORM SEWER, text 12\\" PVC",
-      "evidence_refs": ["12\\" PVC"]
+      "confidence": 0.85,
+      "reason": "Legend: 'Storm Drain - CB, DI' + nearby 'DI' label",
+      "evidence_refs": ["DI", "Storm Drain"]
     }
   ]
 }

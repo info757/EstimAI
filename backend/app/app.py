@@ -24,7 +24,7 @@ def create_app() -> FastAPI:
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "*"],
+        allow_origins=["http://localhost:5173", "http://localhost:8080", "*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -143,6 +143,7 @@ def create_app() -> FastAPI:
             
             # Log all critical detection pipeline configuration
             config_summary = {
+                "ESTIMAI_USE_VISION": os.getenv("ESTIMAI_USE_VISION", "0"),
                 "APR_USE_APRYSE": os.getenv("APR_USE_APRYSE", "0"),
                 "ESTIMAI_USE_DEMO": os.getenv("ESTIMAI_USE_DEMO", "0"),
                 "ESTIMAI_TEXT_BACKEND": settings.get_text_backend(),

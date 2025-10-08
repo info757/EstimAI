@@ -9,9 +9,25 @@ import ezdxf
 from ezdxf import units
 from ezdxf.entities import Text
 from ezdxf.enums import TextEntityAlignment
-from ezdxf.addons.drawing import RenderContext, Frontend
-from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
-import matplotlib.pyplot as plt
+
+# Optional: matplotlib for fallback
+try:
+    from ezdxf.addons.drawing import RenderContext, Frontend
+    from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+
+# ReportLab for true vector PDF
+try:
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.colors import HexColor as RLHexColor
+    from reportlab.lib.units import inch
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 # ---------- scene synthesis ----------
 
@@ -38,6 +54,45 @@ def gen_scene(seed=1):
 
     # sample elevations (invert-out) for manholes
     invs = {"MH-1": 421.80, "MH-2": 421.10}
+    
+    # Profile data for each utility (station, ground_elev, invert_elev)
+    # Ground elevation: ~430 ft, pipes buried 8-10 ft deep
+    # 2% slope = 0.02 ft/ft drop
+    profiles = {
+        "water": {
+            "start_station": 0,
+            "end_station": 460,
+            "diameter_in": 8,
+            "material": "DI",
+            "ground_start": 430.0,
+            "ground_end": 428.0,  # Slight grade
+            "invert_start": 422.0,  # 8 ft deep at start
+            "invert_end": 412.8,   # 8 ft deep + 2% slope over 460ft = 9.2ft drop
+            "slope_pct": 2.0
+        },
+        "sewer": {
+            "start_station": 0,
+            "end_station": 460,
+            "diameter_in": 8,
+            "material": "PVC",
+            "ground_start": 430.0,
+            "ground_end": 428.0,
+            "invert_start": 420.0,  # 10 ft deep at start
+            "invert_end": 410.8,   # 10 ft deep + 2% slope = 9.2ft drop
+            "slope_pct": 2.0
+        },
+        "storm": {
+            "start_station": 0,
+            "end_station": 460,
+            "diameter_in": 12,
+            "material": "RCP",
+            "ground_start": 430.0,
+            "ground_end": 428.0,
+            "invert_start": 421.0,  # 9 ft deep at start
+            "invert_end": 411.8,   # 9 ft deep + 2% slope = 9.2ft drop
+            "slope_pct": 2.0
+        }
+    }
 
     legend = {
         "materials":[{"raw":"DIP","norm":"ductile_iron"},{"raw":"PVC","norm":"pvc"}],
@@ -58,6 +113,7 @@ def gen_scene(seed=1):
         "road": road, "lots": lots,
         "water": water, "sewer": sewer, "storm": storm,
         "nodes": nodes, "elevations": invs, "legend": legend,
+        "profiles": profiles,  # Profile view data
     }
 
 # ---------- DXF helpers ----------
@@ -142,18 +198,466 @@ def build_dxf(scene, out_dxf: Path):
     doc.saveas(out_dxf)
     return doc
 
-# ---------- PDF export (Matplotlib backend) ----------
+# ---------- PDF export (ReportLab - TRUE vector) ----------
 
-def save_pdf(doc, out_pdf: Path):
-    # This produces a vector PDF. Lineweights/linetypes are approximate but good enough for EstimAI tests.
+def save_pdf_reportlab(scene, out_pdf: Path):
+    """Generate TRUE vector PDF using ReportLab (Apryse can extract these!)"""
+    if not HAS_REPORTLAB:
+        raise ImportError("ReportLab not installed. Run: pip install reportlab")
+    
+    # Create PDF canvas - landscape letter
+    c = rl_canvas.Canvas(str(out_pdf), pagesize=landscape(letter))
+    width, height = landscape(letter)
+    
+    # Scale factor: our scene is 0-500 ft wide, PDF is 11 inches wide
+    # Leave margins: use 10 inches for drawing
+    scale = (10 * inch) / 500  # points per foot in our coordinate system
+    
+    # Origin offset (1 inch margin from left, center vertically)
+    origin_x = 0.5 * inch
+    origin_y = 1 * inch
+    
+    def to_pdf(x, y):
+        """Convert scene coordinates (feet) to PDF points"""
+        return (origin_x + x * scale, origin_y + y * scale)
+    
+    # Title
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(width/2 - 100, height - 30, "UTILITY PLAN - TEST SITE")
+    
+    # Scale bar
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(width - 150, height - 30, "SCALE: 1\" = 40'")
+    
+    # Legend
+    legend_x, legend_y = 30, height - 80
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(legend_x, legend_y, "LEGEND:")
+    c.setFont("Helvetica", 9)
+    
+    # Water legend
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(2)
+    c.line(legend_x, legend_y - 20, legend_x + 30, legend_y - 20)
+    c.setFillColor(RLHexColor('#000000'))
+    c.drawString(legend_x + 35, legend_y - 23, "WATER MAIN (Blue, Solid) - WM, HYD, GV")
+    
+    # Sanitary legend
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    c.setLineWidth(2)
+    c.setDash([3, 2])
+    c.line(legend_x, legend_y - 40, legend_x + 30, legend_y - 40)
+    c.setDash([])
+    c.drawString(legend_x + 35, legend_y - 43, "SANITARY SEWER (Green, Dashed) - SS, SSMH, INV")
+    
+    # Storm legend
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setLineWidth(2)
+    c.line(legend_x, legend_y - 60, legend_x + 30, legend_y - 60)
+    c.drawString(legend_x + 35, legend_y - 63, "STORM DRAIN (Cyan, Solid) - CB, DI, FES")
+    
+    # Draw road
+    c.setStrokeColor(RLHexColor('#666666'))
+    c.setLineWidth(3)
+    pts = [to_pdf(x, y) for x, y in scene["road"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw lots
+    c.setStrokeColor(RLHexColor('#CCCCCC'))
+    c.setLineWidth(1)
+    for lot in scene["lots"]:
+        pts = [to_pdf(x, y) for x, y in lot]
+        p = c.beginPath()
+        p.moveTo(*pts[0])
+        for pt in pts[1:]:
+            p.lineTo(*pt)
+        c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw water main
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(2)
+    pts = [to_pdf(x, y) for x, y in scene["water"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw sanitary sewer (dashed)
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    c.setLineWidth(2)
+    c.setDash([3, 2])
+    pts = [to_pdf(x, y) for x, y in scene["sewer"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    c.setDash([])
+    
+    # Draw storm drain
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setLineWidth(2)
+    pts = [to_pdf(x, y) for x, y in scene["storm"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw nodes and labels
+    c.setFont("Helvetica", 7)
+    c.setFillColor(RLHexColor('#000000'))
+    
+    # Hydrants
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(1)
+    for x, y in scene["nodes"]["hydrants"]:
+        px, py = to_pdf(x, y)
+        c.circle(px, py, 3, stroke=1, fill=0)
+        c.drawString(px + 4, py + 2, "HYD")
+    
+    # Manholes with invert elevations
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    for i, (x, y) in enumerate(scene["nodes"]["manholes"], start=1):
+        px, py = to_pdf(x, y)
+        c.circle(px, py, 2.5, stroke=1, fill=0)
+        inv = scene["elevations"].get(f"MH-{i}", 421.00)
+        c.drawString(px + 4, py - 2, f"SSMH-{i}  INV OUT={inv:.2f}'")
+    
+    # Inlets
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setFillColor(RLHexColor('#00AAAA'))
+    for x, y in scene["nodes"]["inlets"]:
+        px, py = to_pdf(x, y)
+        c.rect(px - 2, py - 2, 4, 4, stroke=0, fill=1)
+        c.setFillColor(RLHexColor('#000000'))
+        c.drawString(px + 4, py, "DI")
+        c.setFillColor(RLHexColor('#00AAAA'))
+    
+    c.save()
+
+
+def save_pdf_reportlab_with_profile(scene, out_pdf: Path):
+    """Generate TRUE vector PDF with plan view (page 1) and profile view (page 2)."""
+    if not HAS_REPORTLAB:
+        raise ImportError("ReportLab not installed. Run: pip install reportlab")
+    
+    # Create PDF canvas - landscape letter
+    c = rl_canvas.Canvas(str(out_pdf), pagesize=landscape(letter))
+    width, height = landscape(letter)
+    
+    # ========== PAGE 1: PLAN VIEW ==========
+    _draw_plan_view(c, scene, width, height)
+    c.showPage()  # Start new page
+    
+    # ========== PAGE 2: PROFILE VIEW ==========
+    _draw_profile_view(c, scene, width, height)
+    
+    c.save()
+
+
+def _draw_plan_view(c, scene, width, height):
+    """Draw the plan view (same as before)."""
+    # Scale factor: our scene is 0-500 ft wide, PDF is 11 inches wide
+    # Leave margins: use 10 inches for drawing
+    scale = (10 * inch) / 500  # points per foot in our coordinate system
+    
+    # Origin offset (1 inch margin from left, center vertically)
+    origin_x = 0.5 * inch
+    origin_y = 1 * inch
+    
+    def to_pdf(x, y):
+        """Convert scene coordinates (feet) to PDF points"""
+        return (origin_x + x * scale, origin_y + y * scale)
+    
+    # Title
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(width/2 - 100, height - 30, "UTILITY PLAN - PLAN VIEW")
+    
+    # Scale bar
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(width - 150, height - 30, "SCALE: 1\" = 40'")
+    
+    # Legend
+    legend_x, legend_y = 30, height - 80
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(legend_x, legend_y, "LEGEND:")
+    c.setFont("Helvetica", 9)
+    
+    # Water legend
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(2)
+    c.line(legend_x, legend_y - 20, legend_x + 30, legend_y - 20)
+    c.setFillColor(RLHexColor('#000000'))
+    c.drawString(legend_x + 35, legend_y - 23, "WATER MAIN (Blue, Solid) - WM, HYD, GV - 8\" DI")
+    
+    # Sanitary legend
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    c.setLineWidth(2)
+    c.setDash([3, 2])
+    c.line(legend_x, legend_y - 40, legend_x + 30, legend_y - 40)
+    c.setDash([])
+    c.drawString(legend_x + 35, legend_y - 43, "SANITARY SEWER (Green, Dashed) - SS, SSMH, INV - 8\" PVC")
+    
+    # Storm legend
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setLineWidth(2)
+    c.line(legend_x, legend_y - 60, legend_x + 30, legend_y - 60)
+    c.drawString(legend_x + 35, legend_y - 63, "STORM DRAIN (Cyan, Solid) - CB, DI, FES - 12\" RCP")
+    
+    # Draw road
+    c.setStrokeColor(RLHexColor('#666666'))
+    c.setLineWidth(3)
+    pts = [to_pdf(x, y) for x, y in scene["road"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw lots
+    c.setStrokeColor(RLHexColor('#CCCCCC'))
+    c.setLineWidth(1)
+    for lot in scene["lots"]:
+        pts = [to_pdf(x, y) for x, y in lot]
+        p = c.beginPath()
+        p.moveTo(*pts[0])
+        for pt in pts[1:]:
+            p.lineTo(*pt)
+        c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw water main
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(2)
+    pts = [to_pdf(x, y) for x, y in scene["water"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw sanitary sewer (dashed)
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    c.setLineWidth(2)
+    c.setDash([3, 2])
+    pts = [to_pdf(x, y) for x, y in scene["sewer"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    c.setDash([])
+    
+    # Draw storm drain
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setLineWidth(2)
+    pts = [to_pdf(x, y) for x, y in scene["storm"]]
+    p = c.beginPath()
+    p.moveTo(*pts[0])
+    for pt in pts[1:]:
+        p.lineTo(*pt)
+    c.drawPath(p, stroke=1, fill=0)
+    
+    # Draw nodes and labels
+    c.setFont("Helvetica", 7)
+    c.setFillColor(RLHexColor('#000000'))
+    
+    # Hydrants
+    c.setStrokeColor(RLHexColor('#0000FF'))
+    c.setLineWidth(1)
+    for x, y in scene["nodes"]["hydrants"]:
+        px, py = to_pdf(x, y)
+        c.circle(px, py, 3, stroke=1, fill=0)
+        c.drawString(px + 4, py + 2, "HYD")
+    
+    # Manholes with invert elevations
+    c.setStrokeColor(RLHexColor('#00AA00'))
+    for i, (x, y) in enumerate(scene["nodes"]["manholes"], start=1):
+        px, py = to_pdf(x, y)
+        c.circle(px, py, 2.5, stroke=1, fill=0)
+        inv = scene["elevations"].get(f"MH-{i}", 421.00)
+        c.drawString(px + 4, py - 2, f"SSMH-{i}  INV OUT={inv:.2f}'")
+    
+    # Inlets
+    c.setStrokeColor(RLHexColor('#00AAAA'))
+    c.setFillColor(RLHexColor('#00AAAA'))
+    for x, y in scene["nodes"]["inlets"]:
+        px, py = to_pdf(x, y)
+        c.rect(px - 2, py - 2, 4, 4, stroke=0, fill=1)
+        c.setFillColor(RLHexColor('#000000'))
+        c.drawString(px + 4, py, "DI")
+        c.setFillColor(RLHexColor('#00AAAA'))
+
+
+def _draw_profile_view(c, scene, width, height):
+    """Draw profile view with three separate profile strips (one per utility)."""
+    profiles = scene.get("profiles", {})
+    
+    # Title
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(width/2 - 120, height - 30, "UTILITY PLAN - PROFILE VIEW")
+    
+    # Scale
+    c.setFont("Helvetica", 10)
+    c.drawString(width - 200, height - 30, "HORIZ: 1\" = 40'  VERT: 1\" = 10'")
+    
+    # Drawing area - divide into 3 horizontal strips (one per utility)
+    margin_x = 1.5 * inch
+    margin_y = 0.5 * inch
+    draw_width = width - (2 * margin_x)
+    strip_height = (height - margin_y - (1 * inch)) / 3  # Divide into 3 strips
+    
+    # Horizontal scale: 460 ft → draw_width
+    h_scale = draw_width / 500  # points per foot horizontal
+    
+    # Vertical scale within each strip: ~20 ft range
+    v_scale = strip_height / 30  # points per foot vertical
+    
+    # Draw each utility in its own strip
+    utilities = [
+        ("water", profiles.get("water", {}), RLHexColor('#0000FF'), "WATER MAIN", 0),
+        ("sewer", profiles.get("sewer", {}), RLHexColor('#00AA00'), "SANITARY SEWER", 1),
+        ("storm", profiles.get("storm", {}), RLHexColor('#00AAAA'), "STORM DRAIN", 2),
+    ]
+    
+    for util_name, prof, color, label, strip_idx in utilities:
+        if not prof:
+            continue
+        
+        # Calculate strip base Y
+        strip_base_y = height - (1 * inch) - ((strip_idx + 1) * strip_height)
+        
+        def to_profile(station, elevation_offset):
+            """Convert station and elevation offset to PDF coordinates."""
+            x = margin_x + (station * h_scale)
+            y = strip_base_y + (elevation_offset * v_scale)
+            return (x, y)
+        
+        # Draw strip border
+        c.setStrokeColor(RLHexColor('#CCCCCC'))
+        c.setLineWidth(0.5)
+        c.rect(margin_x, strip_base_y, draw_width, strip_height, stroke=1, fill=0)
+        
+        # Title for this strip
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(color)
+        c.drawString(margin_x + 10, strip_base_y + strip_height - 20, label)
+        
+        # Ground elevation (flat line at top of strip)
+        ground_avg = (prof["ground_start"] + prof["ground_end"]) / 2
+        c.setStrokeColor(RLHexColor('#000000'))
+        c.setLineWidth(2)
+        x1, y_ground = to_profile(0, 25)  # Top of strip
+        x2, _ = to_profile(prof["end_station"], 25)
+        c.line(x1, y_ground, x2, y_ground)
+        
+        # Ground elevation label
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(RLHexColor('#000000'))
+        c.drawString(x1 - 80, y_ground - 3, f"GL={ground_avg:.1f}'")
+        
+        # Pipe invert line (sloping down)
+        # Calculate vertical positions relative to strip base
+        depth_start = prof["ground_start"] - prof["invert_start"]
+        depth_end = prof["ground_end"] - prof["invert_end"]
+        
+        # Position pipe relative to ground line
+        c.setStrokeColor(color)
+        c.setLineWidth(3)
+        xi1, yi1 = to_profile(0, 25 - depth_start)
+        xi2, yi2 = to_profile(prof["end_station"], 25 - depth_end)
+        c.line(xi1, yi1, xi2, yi2)
+        
+        # Draw pipe diameter (circle at start and end)
+        dia_pts = (prof["diameter_in"] / 12.0) * v_scale
+        c.circle(xi1, yi1, dia_pts/2, stroke=1, fill=0)
+        c.circle(xi2, yi2, dia_pts/2, stroke=1, fill=0)
+        
+        # Station markers
+        c.setFont("Helvetica", 7)
+        c.setFillColor(RLHexColor('#666666'))
+        for sta in range(0, 500, 100):
+            x, y_marker = to_profile(sta, 0)
+            c.setStrokeColor(RLHexColor('#DDDDDD'))
+            c.setLineWidth(0.5)
+            c.line(x, strip_base_y, x, strip_base_y + strip_height)
+            c.setFillColor(RLHexColor('#666666'))
+            c.drawString(x - 12, strip_base_y - 8, f"{sta}+00")
+        
+        # Start point annotations (left side)
+        c.setFont("Helvetica", 8)
+        c.setFillColor(RLHexColor('#000000'))
+        c.drawString(xi1 + 5, yi1 + 15, f"IE={prof['invert_start']:.1f}'")
+        c.drawString(xi1 + 5, yi1 + 5, f"Depth={depth_start:.1f}'")
+        c.drawString(xi1 + 5, yi1 - 5, f"{prof['diameter_in']}\" {prof['material']}")
+        
+        # End point annotations (right side)
+        c.drawString(xi2 - 80, yi2 + 15, f"IE={prof['invert_end']:.1f}'")
+        c.drawString(xi2 - 80, yi2 + 5, f"Depth={depth_end:.1f}'")
+        c.drawString(xi2 - 80, yi2 - 5, f"Slope={prof['slope_pct']:.1f}%")
+    
+    # Legend for profile
+    legend_x = 30
+    legend_y = 100
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(RLHexColor('#000000'))
+    c.drawString(legend_x, legend_y, "PROFILE LEGEND:")
+    c.setFont("Helvetica", 9)
+    c.drawString(legend_x, legend_y - 15, "IE = Invert Elevation (BOTTOM INSIDE of pipe, feet above sea level)")
+    c.drawString(legend_x, legend_y - 28, "GL = Ground Level (surface, feet above sea level)")
+    c.drawString(legend_x, legend_y - 41, "STA = Station (horizontal distance in feet)")
+    c.drawString(legend_x, legend_y - 54, "Black line = Ground surface")
+    c.drawString(legend_x, legend_y - 67, "Colored line = Pipe invert (bottom of pipe)")
+    c.drawString(legend_x, legend_y - 80, "Circle = Pipe diameter (shown to scale)")
+    
+    # Note about depth calculation
+    c.setFont("Helvetica-Bold", 9)
+    c.setFillColor(RLHexColor('#CC0000'))
+    c.drawString(legend_x, legend_y - 100, "DEPTH TO INVERT = GL - IE")
+    c.drawString(legend_x, legend_y - 113, "COVER (to top of pipe) = GL - IE - diameter")
+    
+    # Add note about elevations being in feet above sea level
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(RLHexColor('#CC0000'))
+    c.drawString(width/2 - 150, height - 50, "NOTE: All elevations in feet above sea level (MSL)")
+
+# ---------- PDF export (Matplotlib backend - FALLBACK) ----------
+
+def save_pdf_matplotlib(doc, out_pdf: Path):
+    """Matplotlib backend - produces rasterized content (not ideal for Apryse)"""
+    if not HAS_MATPLOTLIB:
+        raise ImportError("Matplotlib not installed")
+    
     msp = doc.modelspace()
-    fig = plt.figure(figsize=(36, 24), dpi=72)  # 36x24" sheet
-    ax = fig.add_axes([0, 0, 1, 1])
+    fig = plt.figure(figsize=(11, 8.5), dpi=72, facecolor='white')
+    ax = fig.add_axes([0, 0, 1, 1], facecolor='white')
+    ax.set_xlim(0, 500)
+    ax.set_ylim(-20, 180)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    
     ctx = RenderContext(doc)
     backend = MatplotlibBackend(ax)
     Frontend(ctx, backend).draw_layout(msp, finalize=True)
-    fig.savefig(out_pdf, bbox_inches="tight", pad_inches=0)
+    
+    fig.savefig(out_pdf, format='pdf', bbox_inches='tight', pad_inches=0.1, dpi=72, facecolor='white')
     plt.close(fig)
+
+def save_pdf(scene, doc, out_pdf: Path):
+    """Save PDF using best available method"""
+    if HAS_REPORTLAB:
+        print(f"  Using ReportLab (true vector PDF with profile view)")
+        save_pdf_reportlab_with_profile(scene, out_pdf)
+    elif HAS_MATPLOTLIB:
+        print(f"  Using Matplotlib (rasterized PDF - not ideal)")
+        save_pdf_matplotlib(doc, out_pdf)
+    else:
+        raise ImportError("Neither ReportLab nor Matplotlib available for PDF export")
 
 # ---------- CLI ----------
 
@@ -175,7 +679,7 @@ def main():
         gt_path  = outdir / f"ground_truth_s{seed:02d}.json"
 
         doc = build_dxf(scene, dxf_path)
-        save_pdf(doc, pdf_path)
+        save_pdf(scene, doc, pdf_path)
         gt_path.write_text(json.dumps(scene, indent=2))
 
         print(f"Wrote: {dxf_path}\n       {pdf_path}\n       {gt_path}")
