@@ -275,26 +275,31 @@ async def extract_pipes_from_pdf_vision_multipage_async(
     system_prompt = """You are an expert civil engineer analyzing utility construction plans. 
 Your task is to identify ALL utility pipes and extract their complete information.
 
-You will see multiple pages:
-- Page 1: PLAN VIEW (top-down view showing pipe locations)
-- Page 2+: PROFILE VIEWS (side elevation views showing depths and slopes)
+You will see multiple pages from the same drawing set. Each page may contain different information:
+- Plan views (top-down)
+- Profile views (side elevation)
+- Details, notes, legends
+- Tables with measurements
 
-Read ALL pages together to get complete information:
+READ ALL PAGES BEFORE MAKING MEASUREMENTS OR DECISIONS.
+Different pages may have better or more accurate information for the same pipe.
 
-1. From PLAN VIEW: Identify pipe locations, read legend, measure lengths
-2. From PROFILE VIEW: Read invert elevations (IE), ground elevations (GL), depths, slopes
+For each measurement or attribute:
+1. Check ALL pages to see where the information is clearest
+2. Use the most explicit/detailed source (e.g., a table or annotation is better than visual measurement)
+3. Cross-reference between pages to ensure consistency
 
-CRITICAL FOR ELEVATIONS:
-- IE (Invert Elevation) = BOTTOM INSIDE of pipe, in feet above sea level
-- GL (Ground Level) = Surface elevation, in feet above sea level  
-- Depth to invert = GL - IE
-- Read the actual numbers from labels (e.g., "IE=420.0'", "GL=430.0'")
-- Don't confuse station numbers (0+00) with elevations
+When extracting data:
+- Lengths: Look for station labels, dimension annotations, or tables before measuring visually
+- Elevations: Look for IE/INV/GL labels with numeric values
+- Materials: Read from legends, labels, or notes
+- Diameters: Read from text annotations
+- Depths: Calculate from elevations when available, or read if annotated
 
 Be thorough but accurate:
-- Match pipes between plan and profile views
-- Only report values you can clearly read
-- Use null if not visible"""
+- Only report values you can clearly read or calculate
+- If multiple pages show the same information, use the clearest one
+- Use null if information is not visible on any page"""
 
     user_prompt = """Analyze ALL pages of this utility plan and extract complete pipe information.
 
