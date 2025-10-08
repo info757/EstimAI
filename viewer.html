@@ -251,7 +251,7 @@
 
             runTakeoffBtn.disabled = true;
             showStatus('takeoffStatus', 'loading', 'Running takeoff...');
-            document.getElementById('results').innerHTML = '<div class="spinner"></div><p class="loading">Processing PDF with Apryse + LLM...</p>';
+            document.getElementById('results').innerHTML = '<div class="spinner"></div><p class="loading">Running Takeoff AI Agent...</p>';
 
             const formData = new FormData();
             formData.append('session_id', 'viewer_' + Date.now());
@@ -286,14 +286,6 @@
             const networks = result.proposed_review?.payload?.networks || {};
 
             let html = '';
-
-            // Pipeline info
-            html += '<div class="result-item">';
-            html += '<strong>🔧 Pipeline</strong><br>';
-            html += `Apryse: ${pipeline.apryse_enabled ? '✅' : '❌'}<br>`;
-            html += `LLM: ${pipeline.llm_model || 'N/A'}<br>`;
-            html += `Ground Source: ${pipeline.ground_source || 'unknown'}`;
-            html += '</div>';
 
             // Summary
             html += '<div class="result-item">';
