@@ -76,24 +76,6 @@
             background: #ccc;
             cursor: not-allowed;
         }
-        .samples {
-            display: grid;
-            gap: 10px;
-        }
-        .sample-item {
-            padding: 12px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .sample-item:hover {
-            background: #e8f5e9;
-            transform: translateX(4px);
-        }
         .pdf-viewer {
             width: 100%;
             height: 800px;
@@ -180,33 +162,6 @@
                 <div id="uploadStatus"></div>
             </div>
 
-            <!-- Sample PDFs -->
-            <div class="card">
-                <h2>📚 Sample PDFs</h2>
-                <div class="samples">
-                    <div class="sample-item" onclick="loadSample('280-utility-construction-plans.pdf')">
-                        <div>
-                            <strong>280-utility-construction-plans.pdf</strong>
-                            <div style="font-size: 12px; color: #666;">3.8MB - Full utility plans</div>
-                        </div>
-                        <span class="badge badge-green">View</span>
-                    </div>
-                    <div class="sample-item" onclick="loadSample('bid_test.pdf')">
-                        <div>
-                            <strong>bid_test.pdf</strong>
-                            <div style="font-size: 12px; color: #666;">3.8MB - Test plans</div>
-                        </div>
-                        <span class="badge badge-green">View</span>
-                    </div>
-                    <div class="sample-item" onclick="loadSample('sample.pdf')">
-                        <div>
-                            <strong>sample.pdf</strong>
-                            <div style="font-size: 12px; color: #666;">5KB - Quick test</div>
-                        </div>
-                        <span class="badge badge-green">View</span>
-                    </div>
-                </div>
-            </div>
 
             <!-- PDF Viewer -->
             <div class="card full-width">
@@ -287,34 +242,6 @@
             showStatus('uploadStatus', 'success', `✓ Loaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
         }
 
-        function loadSample(filename) {
-            // Use Python SimpleHTTPServer or direct file access
-            const sampleUrl = `samples/${filename}`;
-            
-            // Try to load via fetch first to check if it exists
-            fetch(sampleUrl, { method: 'HEAD' })
-                .then(response => {
-                    if (response.ok) {
-                        pdfViewer.src = sampleUrl;
-                        currentPdfFile = null; // Clear uploaded file
-                        
-                        // Fetch the file as blob for takeoff
-                        return fetch(sampleUrl);
-                    } else {
-                        throw new Error('File not found via web server');
-                    }
-                })
-                .then(response => response.blob())
-                .then(blob => {
-                    currentPdfFile = new File([blob], filename, { type: 'application/pdf' });
-                    runTakeoffBtn.disabled = false;
-                    showStatus('uploadStatus', 'success', `✓ Loaded sample: ${filename}`);
-                })
-                .catch(error => {
-                    showStatus('uploadStatus', 'error', 
-                        `Cannot load ${filename}. Start a web server: cd samples && python3 -m http.server 8080`);
-                });
-        }
 
         async function runTakeoff() {
             if (!currentPdfFile) {
