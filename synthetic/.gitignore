@@ -1,0 +1,9 @@
+# Generated synthetic files
+*.dxf
+*.pdf
+ground_truth_*.json
+
+# Keep the generator script and docs
+!gen_site_plan.py
+!README.md
+
