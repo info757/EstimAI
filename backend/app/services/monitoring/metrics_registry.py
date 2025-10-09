@@ -38,7 +38,9 @@ class PipeCountAccuracy(Metric):
         return "pipe_count_accuracy"
     
     def compute(self, predicted: Dict, ground_truth: Dict) -> float:
-        pred_count = predicted.get("pipes_total", 0)
+        # Get predicted count from summary
+        summary = predicted.get("summary", {})
+        pred_count = summary.get("pipes_total", 0)
         
         # Ground truth might have pipes in different formats
         if "pipes" in ground_truth:
