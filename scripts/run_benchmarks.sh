@@ -5,11 +5,11 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-# Load .env file if it exists
+# Load .env file if it exists (excluding CORS settings that break in tests)
 if [ -f .env ]; then
     echo "Loading environment from .env..."
     set -a  # automatically export all variables
-    source .env
+    source <(grep -v '^BACKEND_CORS_ORIGINS' .env | grep -v '^#' | grep -v '^$')
     set +a
 fi
 
