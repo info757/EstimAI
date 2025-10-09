@@ -10,12 +10,19 @@ echo "EstimAI Agent Benchmarks"
 echo "============================================================"
 echo ""
 
-# Load .env file if it exists (excluding CORS settings that break in tests)
+# Load .env file if it exists
 if [ -f .env ]; then
     echo "Loading environment from .env..."
-    set -a  # automatically export all variables
-    source <(grep -v '^BACKEND_CORS_ORIGINS' .env | grep -v '^#' | grep -v '^$')
-    set +a
+    # Load each line manually, skipping CORS
+    while IFS='=' read -r key value; do
+        # Skip comments, empty lines, and CORS
+        if [[ ! "$key" =~ ^# ]] && [[ -n "$key" ]] && [[ "$key" != "BACKEND_CORS_ORIGINS" ]]; then
+            # Remove quotes if present
+            value="${value%\"}"
+            value="${value#\"}"
+            export "$key=$value"
+        fi
+    done < .env
     echo ""
 fi
 
@@ -27,7 +34,9 @@ if [ -z "$LANGSMITH_API_KEY" ]; then
     echo ""
 else
     echo "✅ LangSmith tracing enabled"
+    echo "   API Key: ${LANGSMITH_API_KEY:0:10}... (first 10 chars)"
     echo "   Project: ${LANGSMITH_PROJECT:-estimai-takeoff}"
+    echo "   Tracing: ${LANGSMITH_TRACING:-false}"
     echo "   View at: https://smith.langchain.com"
     echo ""
 fi
