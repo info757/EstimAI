@@ -5,6 +5,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Load .env file if it exists
+if [ -f .env ]; then
+    echo "Loading environment from .env..."
+    export $(grep -v '^#' .env | grep -v '^$' | xargs)
+fi
+
 echo "============================================================"
 echo "EstimAI Agent Benchmarks"
 echo "============================================================"
