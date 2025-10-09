@@ -5,23 +5,24 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+echo "============================================================"
+echo "EstimAI Agent Benchmarks"
+echo "============================================================"
+echo ""
+
 # Load .env file if it exists (excluding CORS settings that break in tests)
 if [ -f .env ]; then
     echo "Loading environment from .env..."
     set -a  # automatically export all variables
     source <(grep -v '^BACKEND_CORS_ORIGINS' .env | grep -v '^#' | grep -v '^$')
     set +a
+    echo ""
 fi
 
-echo "============================================================"
-echo "EstimAI Agent Benchmarks"
-echo "============================================================"
-echo ""
-
-# Check for LangSmith API key
+# Check for LangSmith API key (after loading .env)
 if [ -z "$LANGSMITH_API_KEY" ]; then
     echo "⚠️  LANGSMITH_API_KEY not set"
-    echo "   Set it to enable tracing: export LANGSMITH_API_KEY=your-key"
+    echo "   Set it in .env to enable tracing"
     echo "   Continuing without LangSmith tracing..."
     echo ""
 else
