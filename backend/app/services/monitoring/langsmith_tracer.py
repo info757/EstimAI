@@ -56,9 +56,20 @@ def trace_vision_takeoff(
     Returns:
         Metadata dict for logging
     """
-    storm_count = len(result.get("storm_pipes", []))
-    sanitary_count = len(result.get("sanitary_pipes", []))
-    water_count = len(result.get("water_pipes", []))
+    # Handle both raw vision LLM format and agent response format
+    if "storm_pipes" in result:
+        # Raw vision LLM format
+        storm_count = len(result.get("storm_pipes", []))
+        sanitary_count = len(result.get("sanitary_pipes", []))
+        water_count = len(result.get("water_pipes", []))
+    else:
+        # Agent response format
+        networks = result.get("proposed_review", {}).get("payload", {}).get("networks", {})
+        storm_count = len(networks.get("storm", {}).get("pipes", []))
+        sanitary_count = len(networks.get("sanitary", {}).get("pipes", []))
+        water_count = len(networks.get("water", {}).get("pipes", []))
+    
+    total_pipes = storm_count + sanitary_count + water_count
     
     metadata = {
         "pdf_path": os.path.basename(pdf_path),
@@ -67,7 +78,7 @@ def trace_vision_takeoff(
             "storm": storm_count,
             "sanitary": sanitary_count,
             "water": water_count,
-            "total": storm_count + sanitary_count + water_count
+            "total": total_pipes
         },
         "latency_ms": latency_ms,
         "timestamp": datetime.now().isoformat(),
