@@ -184,6 +184,41 @@ class MaterialAccuracy(Metric):
         return sum(scores) / len(scores) if scores else 0.0
 
 
+class ProductionQualityMetric(Metric):
+    """
+    Evaluates extraction quality WITHOUT ground truth.
+    
+    Uses internal consistency, faithfulness, and completeness checks.
+    Useful for real-world PDFs where we don't have "answers".
+    """
+    
+    @property
+    def name(self) -> str:
+        return "production_quality"
+    
+    def compute(self, predicted: Dict, ground_truth: Dict) -> float:
+        """
+        Compute production quality score.
+        
+        Note: ground_truth here should contain {"pdf_text": "..."} for faithfulness checks.
+        """
+        from backend.app.services.monitoring.production_eval import (
+            check_consistency,
+            assess_extraction_quality,
+            calculate_overall_confidence
+        )
+        
+        # Extract PDF text from ground_truth (if provided)
+        pdf_text = ground_truth.get("pdf_text", "")
+        
+        # Run evaluation
+        consistency_checks = check_consistency(predicted)
+        quality_scores = assess_extraction_quality(predicted, pdf_text)
+        confidence = calculate_overall_confidence(quality_scores, consistency_checks)
+        
+        return confidence
+
+
 class MetricsRegistry:
     """
     Central registry for all takeoff metrics.
@@ -198,6 +233,9 @@ class MetricsRegistry:
                 "elevation": ElevationAccuracy(),
                 "length": LengthAccuracy(),
                 "material": MaterialAccuracy()
+            },
+            "production": {
+                "quality": ProductionQualityMetric()
             }
             # Future categories:
             # "earthwork": {...},
